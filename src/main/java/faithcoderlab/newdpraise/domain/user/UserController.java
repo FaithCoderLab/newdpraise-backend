@@ -1,5 +1,6 @@
 package faithcoderlab.newdpraise.domain.user;
 
+import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
