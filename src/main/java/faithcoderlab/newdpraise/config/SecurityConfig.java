@@ -2,6 +2,7 @@ package faithcoderlab.newdpraise.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,6 +26,8 @@ public class SecurityConfig {
         )
         .authorizeHttpRequests(authorize -> authorize
             .requestMatchers("/users/signup").permitAll()
+            .requestMatchers("/swagger-ui/**").permitAll()
+            .requestMatchers("/v3/api-docs/**").permitAll()
             .anyRequest().authenticated()
         );
 
@@ -32,6 +35,7 @@ public class SecurityConfig {
   }
 
   @Bean
+  @Profile("!test")
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
