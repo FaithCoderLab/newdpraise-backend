@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestConfig.class)
+@Import(faithcoderlab.newdpraise.config.TestConfig.class)
 @ActiveProfiles("test")
 @Transactional
 public class UserApiTest {
@@ -71,6 +71,7 @@ public class UserApiTest {
     // given
     SignupRequest request = SignupRequest.builder()
         .email("duplicate@example.com")
+        .password("Password123!")
         .name("테스트유저")
         .instrument("베이스")
         .build();
