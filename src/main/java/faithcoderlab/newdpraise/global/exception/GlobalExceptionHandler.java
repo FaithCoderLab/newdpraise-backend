@@ -26,6 +26,16 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
   }
 
+  @ExceptionHandler(AuthenticationException.class)
+  public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.UNAUTHORIZED.value(),
+        ex.getMessage(),
+        LocalDateTime.now()
+    );
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
       MethodArgumentNotValidException ex
