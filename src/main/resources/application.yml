@@ -18,6 +18,13 @@ server:
   servlet:
     context-path: /api
 
+jwt:
+  secret: ${JWT_SECRET:exampleSecretKeyThatShouldBeReplacedInProduction}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600000}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  token-prefix: "Bearer "
+  header-string: "Authorization"
+
 logging:
   level:
     root: INFO
