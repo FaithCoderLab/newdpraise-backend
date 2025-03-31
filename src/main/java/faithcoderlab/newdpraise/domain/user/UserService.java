@@ -2,6 +2,7 @@ package faithcoderlab.newdpraise.domain.user;
 
 import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
 import faithcoderlab.newdpraise.domain.user.dto.SignupResponse;
+import faithcoderlab.newdpraise.global.exception.ResourceAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
