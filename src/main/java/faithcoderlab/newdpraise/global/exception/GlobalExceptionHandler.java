@@ -1,9 +1,14 @@
 package faithcoderlab.newdpraise.global.exception;
 
+import faithcoderlab.newdpraise.global.exception.GlobalExceptionHandler.ErrorResponse.ValidationErrorResponse;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -21,6 +26,27 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
   }
 
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
+      MethodArgumentNotValidException ex
+  ) {
+    Map<String, String> errors = new HashMap<>();
+    ex.getBindingResult().getAllErrors().forEach((error) -> {
+      String fieldName = ((FieldError) error).getField();
+      String errorMessage = error.getDefaultMessage();
+      errors.put(fieldName, errorMessage);
+    });
+
+    ValidationErrorResponse errorResponse = new ValidationErrorResponse(
+        HttpStatus.BAD_REQUEST.value(),
+        "유효성 검증에 실패했습니다.",
+        LocalDateTime.now(),
+        errors
+    );
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+  }
+
   @Getter
   public static class ErrorResponse {
     private final int status;
@@ -33,5 +59,15 @@ public class GlobalExceptionHandler {
       this.timestamp = timestamp;
     }
 
+    @Getter
+    public static class ValidationErrorResponse extends ErrorResponse {
+      private final Map<String, String> errors;
+
+      public ValidationErrorResponse(int status, String message, LocalDateTime timestamp,
+          Map<String, String> errors) {
+        super(status, message, timestamp);
+        this.errors = errors;
+      }
+    }
   }
 }
