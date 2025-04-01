@@ -6,8 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import faithcoderlab.newdpraise.config.TestConfig;
-import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +44,7 @@ public class UserApiTest {
   @DisplayName("회원가입 API 통합 테스트 - 성공")
   void signupApiSuccess() throws Exception {
     // given
-    SignupRequest request = SignupRequest.builder()
+    SignUpRequest request = SignUpRequest.builder()
         .email("suming@example.com")
         .password("Password123!")
         .name("수밍")
@@ -69,7 +68,7 @@ public class UserApiTest {
   @DisplayName("회원가입 API 통합 테스트 - 중복 이메일 실패")
   void signupApiDuplicateEmailFail() throws Exception {
     // given
-    SignupRequest request = SignupRequest.builder()
+    SignUpRequest request = SignUpRequest.builder()
         .email("duplicate@example.com")
         .password("Password123!")
         .name("테스트유저")

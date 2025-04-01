@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SignupResponse {
+public class SignUpResponse {
   private Long id;
   private String email;
   private String name;
@@ -21,8 +21,8 @@ public class SignupResponse {
   private Role role;
   private LocalDateTime createdAt;
 
-  public static SignupResponse fromUser(User user) {
-    return SignupResponse.builder()
+  public static SignUpResponse fromUser(User user) {
+    return SignUpResponse.builder()
         .id(user.getId())
         .email(user.getEmail())
         .name(user.getName())

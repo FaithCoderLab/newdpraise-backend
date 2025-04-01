@@ -1,7 +1,7 @@
 package faithcoderlab.newdpraise.domain.user;
 
-import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
-import faithcoderlab.newdpraise.domain.user.dto.SignupResponse;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,13 +28,13 @@ public class UserController {
   @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "201", description = "회원가입 성공",
-          content = @Content(schema = @Schema(implementation = SignupResponse.class))),
+          content = @Content(schema = @Schema(implementation = SignUpResponse.class))),
       @ApiResponse(responseCode = "409", description = "이미 사용 중인 이메일"),
       @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 데이터")
   })
   @PostMapping("/signup")
-  public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
-    SignupResponse response = userService.signup(request);
+  public ResponseEntity<SignUpResponse> signup(@Valid @RequestBody SignUpRequest request) {
+    SignUpResponse response = userService.signup(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 }
