@@ -1,7 +1,7 @@
 package faithcoderlab.newdpraise.domain.user;
 
-import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
-import faithcoderlab.newdpraise.domain.user.dto.SignupResponse;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import faithcoderlab.newdpraise.global.exception.ResourceAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,7 +16,7 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
 
   @Transactional
-  public SignupResponse signup(SignupRequest request) {
+  public SignUpResponse signup(SignUpRequest request) {
     if (userRepository.existsByEmail(request.getEmail())) {
       throw new ResourceAlreadyExistsException("이미 사용 중인 이메일입니다.");
     }
@@ -33,6 +33,6 @@ public class UserService {
 
     User savedUser = userRepository.save(user);
 
-    return SignupResponse.fromUser(savedUser);
+    return SignUpResponse.fromUser(savedUser);
   }
 }

@@ -1,6 +1,5 @@
 package faithcoderlab.newdpraise.domain.user;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,11 +9,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import faithcoderlab.newdpraise.config.TestConfig;
-import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
-import faithcoderlab.newdpraise.domain.user.dto.SignupResponse;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import java.time.LocalDateTime;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,14 +46,14 @@ class UserControllerTest {
   @DisplayName("회원가입 성공 테스트")
   void signupSuccess() throws Exception {
     // given
-    SignupRequest request = SignupRequest.builder()
+    SignUpRequest request = SignUpRequest.builder()
         .email("suming@example.com")
         .password("Password123!")
         .name("수밍")
         .instrument("피아노")
         .build();
 
-    SignupResponse response = SignupResponse.builder()
+    SignUpResponse response = SignUpResponse.builder()
         .id(1L)
         .email("suming@example.com")
         .name("수밍")
@@ -59,7 +62,7 @@ class UserControllerTest {
         .createdAt(LocalDateTime.now())
         .build();
 
-    when(userService.signup(any(SignupRequest.class))).thenReturn(response);
+    when(userService.signup(any(SignUpRequest.class))).thenReturn(response);
 
     // when & then
     mockMvc.perform(post("/users/signup")
@@ -74,60 +77,78 @@ class UserControllerTest {
         .andExpect(jsonPath("$.role").value("USER"));
   }
 
-  @Test
-  @DisplayName("회원가입 실패 - 유효하지 않은 이메일")
-  void SignupRailWithInvalidEmail() throws Exception {
-    // given
-    SignupRequest request = SignupRequest.builder()
-        .email("invalid-email") // 이메일 형식 X
-        .password("Password123!")
-        .name("테스트유저")
-        .instrument("드럼")
-        .build();
-
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("invalidSignUpRequestProvider")
+  @DisplayName("회원가입 실패 - 유효성 검증")
+  void SignupRailWithInvalidRequest(String testCase, SignUpRequest request, String fieldName, String expectedMessage) throws Exception {
     // when & then
     mockMvc.perform(post("/users/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
         .andDo(print())
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.message").value("유효성 검증에 실패했습니다."))
+        .andExpect(jsonPath("$.errors." + fieldName).value(expectedMessage));
   }
 
-  @Test
-  @DisplayName("회원가입 실패 - 비밀번호 유효성 검사")
-  void SignupRailWithInvalidPassword() throws Exception {
-    // given
-    SignupRequest request = SignupRequest.builder()
-        .email("test@example.com")
-        .password("short") // 8자 미만
-        .name("테스트유저")
-        .instrument("기타")
-        .build();
-
-    // when & then
-    mockMvc.perform(post("/users/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andDo(print())
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName("회원가입 실패 - 이름 누락")
-  void signupFailWithMissingName() throws Exception {
-    // given
-    SignupRequest request = SignupRequest.builder()
-        .email("suming@example.com")
-        .password("Password123!")
-        .name("") // 이름 누락
-        .instrument("베이스")
-        .build();
-
-    // when & then
-    mockMvc.perform(post("/users/signup")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andDo(print())
-        .andExpect(status().isBadRequest());
+  private static Stream<Arguments> invalidSignUpRequestProvider() {
+    return Stream.of(
+        Arguments.of(
+            "유효하지 않은 이메일",
+            SignUpRequest.builder()
+                .email("invalid-email")
+                .password("Password123!")
+                .name("수밍")
+                .instrument("드럼")
+                .build(),
+            "email",
+            "유효한 이메일 형식이 아닙니다."
+        ),
+        Arguments.of(
+            "짧은 비밀번호",
+            SignUpRequest.builder()
+                .email("esss@example.com")
+                .password("pw123!")
+                .name("수밍")
+                .instrument("기타")
+                .build(),
+            "password",
+            "비밀번호는 최소 8자 이상이어야 합니다."
+        ),
+        Arguments.of(
+            "비밀번호 조합 부족",
+            SignUpRequest.builder()
+                .email("test@example.com")
+                .password("password123")
+                .name("밍밍")
+                .instrument("베이스")
+                .build(),
+            "password",
+            "비밀번호는 숫자, 영문자, 특수문자를 포함해야 합니다."
+        ),
+        Arguments.of(
+            "이름 누락",
+            SignUpRequest.builder()
+                .email("suming@example.com")
+                .password("Password123!")
+                .name("")
+                .instrument("어쿠스틱 기타")
+                .build(),
+            "name",
+            "이름은 필수 입력 항목입니다."
+        ),
+        Arguments.of(
+            "이메일 누락",
+            SignUpRequest.builder()
+                .email("")
+                .password("Password123!")
+                .name("지현")
+                .instrument("건반")
+                .build(),
+            "email",
+            "이메일은 필수 입력 항목입니다."
+        )
+    );
   }
 }

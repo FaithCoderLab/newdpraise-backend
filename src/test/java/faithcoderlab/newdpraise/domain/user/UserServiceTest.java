@@ -2,15 +2,14 @@ package faithcoderlab.newdpraise.domain.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import faithcoderlab.newdpraise.domain.user.dto.SignupRequest;
-import faithcoderlab.newdpraise.domain.user.dto.SignupResponse;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
+import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import faithcoderlab.newdpraise.global.exception.ResourceAlreadyExistsException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ class UserServiceTest {
   @DisplayName("회원가입 성공")
   void signupSuccess() {
     // given
-    SignupRequest request = SignupRequest.builder()
+    SignUpRequest request = SignUpRequest.builder()
         .email("suming@example.com")
         .password("Password123!")
         .name("수밍")
@@ -59,7 +58,7 @@ class UserServiceTest {
     when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
     // when
-    SignupResponse response = userService.signup(request);
+    SignUpResponse response = userService.signup(request);
 
     // then
     assertThat(response).isNotNull();
@@ -77,7 +76,7 @@ class UserServiceTest {
   @DisplayName("회원가입 실패 - 중복 이메일")
   void signupFailWithDuplicateEmail() {
     // given
-    SignupRequest request = SignupRequest.builder()
+    SignUpRequest request = SignUpRequest.builder()
         .email("existing@example.com")
         .password("Password123!")
         .name("테스트유저")
