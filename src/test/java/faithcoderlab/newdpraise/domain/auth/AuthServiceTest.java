@@ -2,7 +2,6 @@ package faithcoderlab.newdpraise.domain.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -13,7 +12,7 @@ import faithcoderlab.newdpraise.domain.auth.dto.LoginResponse;
 import faithcoderlab.newdpraise.domain.user.Role;
 import faithcoderlab.newdpraise.domain.user.User;
 import faithcoderlab.newdpraise.domain.user.UserRepository;
-import faithcoderlab.newdpraise.global.security.JwtUtil;
+import faithcoderlab.newdpraise.global.security.JwtProvider;
 import java.util.Date;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +32,7 @@ class AuthServiceTest {
   private AuthenticationManager authenticationManager;
 
   @Mock
-  private JwtUtil jwtUtil;
+  private JwtProvider jwtProvider;
 
   @Mock
   private UserRepository userRepository;
@@ -64,9 +63,9 @@ class AuthServiceTest {
     when(authenticationManager.authenticate(
         any(UsernamePasswordAuthenticationToken.class))).thenReturn(null);
     when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
-    when(jwtUtil.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtUtil.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
-    when(jwtUtil.extractExpiration(anyString())).thenReturn(
+    when(jwtProvider.generateAccessToken(any(User.class))).thenReturn("access-token");
+    when(jwtProvider.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
+    when(jwtProvider.extractExpiration(anyString())).thenReturn(
         new Date(System.currentTimeMillis() + 3600000));
 
     // when

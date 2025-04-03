@@ -4,7 +4,7 @@ import faithcoderlab.newdpraise.domain.auth.dto.LoginRequest;
 import faithcoderlab.newdpraise.domain.auth.dto.LoginResponse;
 import faithcoderlab.newdpraise.domain.user.User;
 import faithcoderlab.newdpraise.domain.user.UserRepository;
-import faithcoderlab.newdpraise.global.security.JwtUtil;
+import faithcoderlab.newdpraise.global.security.JwtProvider;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -22,7 +22,7 @@ public class AuthService {
 
   private final AuthenticationManager authenticationManager;
   private final UserRepository userRepository;
-  private final JwtUtil jwtUtil;
+  private final JwtProvider jwtProvider;
   private final RefreshTokenRepository refreshTokenRepository;
 
   @Transactional
@@ -37,8 +37,8 @@ public class AuthService {
     User user = userRepository.findByEmail(loginRequest.getEmail())
         .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
 
-    String accessToken = jwtUtil.generateAccessToken(user);
-    String refreshToken = jwtUtil.generateRefreshToken(user);
+    String accessToken = jwtProvider.generateAccessToken(user);
+    String refreshToken = jwtProvider.generateRefreshToken(user);
 
     saveRefreshToken(user.getEmail(), refreshToken);
 
@@ -61,12 +61,12 @@ public class AuthService {
     if (existingToken.isPresent()) {
       refreshToken = existingToken.get();
       refreshToken.setToken(token);
-      refreshToken.setExpiryDate(toLocalDateTime(jwtUtil.extractExpiration(token)));
+      refreshToken.setExpiresAt(toLocalDateTime(jwtProvider.extractExpiration(token)));
     } else {
       refreshToken = RefreshToken.builder()
           .token(token)
           .userEmail(userEmail)
-          .expiryDate(toLocalDateTime(jwtUtil.extractExpiration(token)))
+          .expiresAt(toLocalDateTime(jwtProvider.extractExpiration(token)))
           .build();
     }
 
