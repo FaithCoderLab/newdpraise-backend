@@ -1,5 +1,6 @@
-package faithcoderlab.newdpraise.domain.user;
+package faithcoderlab.newdpraise.domain.auth;
 
+import faithcoderlab.newdpraise.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
