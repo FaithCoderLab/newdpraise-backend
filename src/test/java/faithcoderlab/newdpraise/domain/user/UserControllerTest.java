@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import faithcoderlab.newdpraise.config.TestConfig;
+import faithcoderlab.newdpraise.config.TestSecurityConfig;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import java.time.LocalDateTime;
@@ -30,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestConfig.class)
+@Import({TestConfig.class, TestSecurityConfig.class})
 class UserControllerTest {
 
   @Autowired
