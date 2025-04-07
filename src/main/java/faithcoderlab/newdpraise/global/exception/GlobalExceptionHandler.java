@@ -86,4 +86,26 @@ public class GlobalExceptionHandler {
       }
     }
   }
+
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+      ResourceNotFoundException ex
+  ) {
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.NOT_FOUND.value(),
+        ex.getMessage(),
+        LocalDateTime.now()
+    );
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+  }
+
+  @ExceptionHandler(FileException.class)
+  public ResponseEntity<ErrorResponse> handleFileException(FileException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.BAD_REQUEST.value(),
+        ex.getMessage(),
+        LocalDateTime.now()
+    );
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+  }
 }
