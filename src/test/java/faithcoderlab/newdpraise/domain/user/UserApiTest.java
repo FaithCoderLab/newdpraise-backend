@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import faithcoderlab.newdpraise.config.TestConfig;
+import faithcoderlab.newdpraise.config.TestSecurityConfig;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(faithcoderlab.newdpraise.config.TestConfig.class)
+@Import({TestConfig.class, TestSecurityConfig.class})
 @ActiveProfiles("test")
 @Transactional
 public class UserApiTest {
