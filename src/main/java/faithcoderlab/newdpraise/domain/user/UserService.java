@@ -7,6 +7,7 @@ import faithcoderlab.newdpraise.domain.user.dto.UserProfileResponse;
 import faithcoderlab.newdpraise.global.exception.ResourceAlreadyExistsException;
 import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
 import faithcoderlab.newdpraise.global.service.FileService;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,7 @@ public class UserService {
 
     user.setName(request.getName());
     user.setInstrument(request.getInstrument());
+    user.setUpdatedAt(LocalDateTime.now());
 
     User updatedUser = userRepository.save(user);
     return UserProfileResponse.fromUser(updatedUser);
