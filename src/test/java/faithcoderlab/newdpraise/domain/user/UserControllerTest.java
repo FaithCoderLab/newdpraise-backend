@@ -1,8 +1,12 @@
 package faithcoderlab.newdpraise.domain.user;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +16,9 @@ import faithcoderlab.newdpraise.config.TestConfig;
 import faithcoderlab.newdpraise.config.TestSecurityConfig;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
+import faithcoderlab.newdpraise.domain.user.dto.UpdateProfileRequest;
+import faithcoderlab.newdpraise.domain.user.dto.UserProfileResponse;
+import faithcoderlab.newdpraise.global.service.FileService;
 import java.time.LocalDateTime;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +32,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -42,6 +51,9 @@ class UserControllerTest {
 
   @MockBean
   private UserService userService;
+
+  @MockBean
+  private FileService fileService;
 
   @Test
   @DisplayName("회원가입 성공 테스트")
@@ -151,5 +163,113 @@ class UserControllerTest {
             "이메일은 필수 입력 항목입니다."
         )
     );
+  }
+
+  @Test
+  @DisplayName("현재 사용자 프로필 조회 API 테스트 - 성공")
+  @WithMockUser(username = "suming@example.com")
+  void getCurrentUserProfileSuccess() throws Exception {
+    // given
+    UserProfileResponse response = UserProfileResponse.builder()
+        .id(1L)
+        .email("suming@example.com")
+        .name("수밍")
+        .instrument("피아노")
+        .role(Role.USER)
+        .build();
+
+    when(userService.getCurrentUserProfile("suming@example.com")).thenReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/users/me"))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.email").value("suming@example.com"))
+        .andExpect(jsonPath("$.name").value("수밍"))
+        .andExpect(jsonPath("$.instrument").value("피아노"))
+        .andExpect(jsonPath("$.role").value("USER"));
+  }
+
+  @Test
+  @DisplayName("사용자 프로필 조회 API 테스트 - 성공")
+  @WithMockUser
+  void getUserProfileSuccess() throws Exception {
+    // given
+    Long userId = 1L;
+    UserProfileResponse response = UserProfileResponse.builder()
+        .id(userId)
+        .email("suming@example.com")
+        .name("수밍")
+        .instrument("피아노")
+        .role(Role.USER)
+        .build();
+
+    when(userService.getUserProfile(userId)).thenReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/users/{userId}", userId))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.email").value("suming@example.com"))
+        .andExpect(jsonPath("$.name").value("수밍"))
+        .andExpect(jsonPath("$.instrument").value("피아노"));
+  }
+
+  @Test
+  @DisplayName("프로필 업데이트 API 테스트 - 실패 (이름 누락)")
+  @WithMockUser(username = "suming@example.com")
+  void updateProfileFailWithNameMissing() throws Exception {
+    // given
+    UpdateProfileRequest request = new UpdateProfileRequest();
+    request.setName("");
+    request.setInstrument("aux keys");
+
+    // when & then
+    mockMvc.perform(put("/users/me")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andDo(print())
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.name").exists());
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 업로드 API 테스트 - 성공")
+  @WithMockUser(username = "suming@example.com")
+  void uploadProfileImageSuccess() throws Exception {
+    // given
+    MockMultipartFile file = new MockMultipartFile(
+        "file", "test.jpg", "image/jpeg", "test image content".getBytes()
+    );
+
+    UserProfileResponse response = UserProfileResponse.builder()
+        .id(1L)
+        .email("suming@example.com")
+        .name("수밍")
+        .instrument("피아노")
+        .profileImage("profile-images/test-image.jpg")
+        .role(Role.USER)
+        .build();
+
+    when(userService.updateProfileImage(anyString(), any(MockMultipartFile.class))).thenReturn(
+        response);
+
+    // when & then
+    mockMvc.perform(multipart("/users/me/profile-image")
+            .file(file))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.profileImage").value("profile-images/test-image.jpg"));
+  }
+
+  @Test
+  @DisplayName("인증되지 않은 사용자는 API 접근 불가")
+  void unauthenticatedUserCannotAccess() throws Exception {
+    // when & then
+    mockMvc.perform(get("/users/me"))
+        .andDo(print())
+        .andExpect(status().isUnauthorized());
   }
 }

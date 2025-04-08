@@ -4,6 +4,7 @@ import faithcoderlab.newdpraise.domain.user.dto.SignUpRequest;
 import faithcoderlab.newdpraise.domain.user.dto.SignUpResponse;
 import faithcoderlab.newdpraise.domain.user.dto.UpdateProfileRequest;
 import faithcoderlab.newdpraise.domain.user.dto.UserProfileResponse;
+import faithcoderlab.newdpraise.global.exception.AuthenticationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -56,6 +57,9 @@ public class UserController {
   })
   @GetMapping("/me")
   public ResponseEntity<UserProfileResponse> getCurrentUserProfile(Principal principal) {
+    if (principal == null) {
+      throw new AuthenticationException("인증되지 않은 사용자입니다.");
+    }
     UserProfileResponse response = userService.getCurrentUserProfile(principal.getName());
     return ResponseEntity.ok(response);
   }
