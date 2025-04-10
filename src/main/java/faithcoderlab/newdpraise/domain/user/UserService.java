@@ -35,7 +35,7 @@ public class UserService {
         .instrument(request.getInstrument())
         .profileImage(request.getProfileImage())
         .role(Role.USER)
-        .enabled(true)
+        .isActive(true)
         .build();
 
     User savedUser = userRepository.save(user);
