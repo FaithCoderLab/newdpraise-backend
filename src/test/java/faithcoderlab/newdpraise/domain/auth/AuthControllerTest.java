@@ -95,7 +95,11 @@ class AuthControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andDo(print())
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.message").value("유효성 검증에 실패했습니다."))
+        .andExpect(jsonPath("$.errors.email").value("유효한 이메일 형식이 아닙니다."))
+        .andExpect(jsonPath("$.errors.password").value("비밀번호는 필수 입력 항목입니다."));
   }
 
   @Test
