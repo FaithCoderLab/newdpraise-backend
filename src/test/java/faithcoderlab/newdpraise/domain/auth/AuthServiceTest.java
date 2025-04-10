@@ -29,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -165,6 +166,31 @@ class AuthServiceTest {
 
     verify(refreshTokenRepository).findByToken("expired-refresh-token");
     verify(refreshTokenRepository).delete(refreshToken);
+  }
+
+  @Test
+  @DisplayName("토큰 재발급 실패 - 연결된 사용자가 없는 경우")
+  void refreshTokenFailWithUserNotFound() {
+    // given
+    TokenRefreshRequest request = new TokenRefreshRequest("valid-refresh-token");
+
+    RefreshToken refreshToken = RefreshToken.builder()
+        .id(1L)
+        .token("valid-refresh-token")
+        .userEmail("non-existing@example.com")
+        .expiresAt(LocalDateTime.now().plusDays(7))
+        .build();
+
+    when(refreshTokenRepository.findByToken(anyString())).thenReturn(Optional.of(refreshToken));
+    when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> authService.refreshToken(request))
+        .isInstanceOf(UsernameNotFoundException.class)
+        .hasMessage("사용자를 찾을 수 없습니다.");
+
+    verify(refreshTokenRepository).findByToken("valid-refresh-token");
+    verify(userRepository).findByEmail("non-existing@example.com");
   }
 
   @Test
