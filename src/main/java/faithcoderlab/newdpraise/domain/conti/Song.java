@@ -37,6 +37,10 @@ public class Song {
 
   private String youtubeUrl;
 
+  private String referenceUrl;
+
+  private String urlType;
+
   private Integer durationSeconds;
 
   @Column(columnDefinition = "TEXT")
@@ -59,5 +63,13 @@ public class Song {
   @PreUpdate
   protected void onUpdate() {
     updatedAt = LocalDateTime.now();
+  }
+
+  public String getUrl() {
+    if (youtubeUrl != null && !youtubeUrl.isEmpty()) {
+      return youtubeUrl;
+    } else {
+      return referenceUrl;
+    }
   }
 }

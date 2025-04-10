@@ -46,7 +46,7 @@ public class Conti {
   private String description;
 
   @Column(nullable = false)
-  private LocalDate performanceDate;
+  private LocalDate scheduledAt;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "creator_id")

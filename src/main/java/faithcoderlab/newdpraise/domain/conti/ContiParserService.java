@@ -32,6 +32,10 @@ public class ContiParserService {
   private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
       "(?:https?://)?(?:www\\.)?(?:youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})(?:[?&][^\\s]*)?");
 
+  private static final Pattern GENERAL_URL_PATTERN = Pattern.compile(
+      "(?:https?://)?(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&//=]*)"
+  );
+
   private static final Pattern BPM_PATTERN = Pattern.compile(
       "\\b(?:BPM|템포)[:\\s]*([0-9]+)\\b");
 
@@ -59,7 +63,7 @@ public class ContiParserService {
 
     Conti conti = Conti.builder()
         .title(title)
-        .performanceDate(performanceDate != null ? performanceDate : LocalDate.now())
+        .scheduledAt(performanceDate != null ? performanceDate : LocalDate.now())
         .creator(creator)
         .songs(songs)
         .version("1.0")
@@ -68,7 +72,7 @@ public class ContiParserService {
         .build();
 
     log.debug("콘티 파싱 완료: 제목={}, 날짜={}, 곡 수={}",
-        conti.getTitle(), conti.getPerformanceDate(), conti.getSongs().size());
+        conti.getTitle(), conti.getScheduledAt(), conti.getSongs().size());
 
     return conti;
   }
@@ -191,24 +195,45 @@ public class ContiParserService {
           j++;
         }
 
-        String youtubeUrl = extractYoutubeUrl(additionalInfo.toString());
-        if (youtubeUrl == null) {
-          youtubeUrl = extractYoutubeUrl(songLine);
+        String url = extractUrl(additionalInfo.toString());
+        if (url == null) {
+          url = extractUrl(songLine);
+        }
+
+        String urlType = getUrlType(url);
+
+        String youtubeUrl = null;
+        String referenceUrl = null;
+
+        if (url != null) {
+          if ("youtube".equals(urlType)) {
+            youtubeUrl = url;
+          } else {
+            referenceUrl = url;
+          }
         }
 
         String specialInstructions = extractSpecialInstructions(
             songLine + "\n" + additionalInfo.toString(),
-            title, key, artist, youtubeUrl
+            title, key, artist, url
         );
 
-        if (title != null && !title.isEmpty()) {
+        String bpm = extractBpm(additionalInfo.toString());
+        if (bpm == null) {
+          bpm = extractBpm(songLine);
+        }
+
+        if (!title.isEmpty()) {
           Song song = Song.builder()
               .title(title)
               .originalKey(key)
               .performanceKey(key)
               .artist(artist)
               .youtubeUrl(youtubeUrl)
+              .referenceUrl(referenceUrl)
+              .urlType(urlType)
               .specialInstructions(specialInstructions)
+              .bpm(bpm)
               .build();
 
           songs.add(song);
@@ -241,7 +266,7 @@ public class ContiParserService {
         continue;
       }
 
-      if (titleBuilder.length() > 0) {
+      if (!titleBuilder.isEmpty()) {
         titleBuilder.append(" ");
       }
       titleBuilder.append(word);
@@ -298,16 +323,39 @@ public class ContiParserService {
     return null;
   }
 
-  private String extractYoutubeUrl(String songLine) {
-    Matcher matcher = YOUTUBE_URL_PATTERN.matcher(songLine);
-    if (matcher.find()) {
-      String videoId = matcher.group(1);
-      return "https://youtube.com/watch?v=" + matcher.group(1);
+  private String extractUrl(String songLine) {
+    Matcher youtubeMatcher = YOUTUBE_URL_PATTERN.matcher(songLine);
+    if (youtubeMatcher.find()) {
+      String videoId = youtubeMatcher.group(1);
+      return "https://youtube.com/watch?v=" + youtubeMatcher.group(1);
     }
+
+    Matcher generalMatcher = GENERAL_URL_PATTERN.matcher(songLine);
+    if (generalMatcher.find()) {
+      return generalMatcher.group();
+    }
+
     return null;
   }
 
-  private String extractSpecialInstructions(String songLine, String title, String key, String artist, String youtubeUrl) {
+  private String getUrlType(String url) {
+    if (url == null) {
+      return null;
+    }
+
+    if (url.contains("youtube.com") || url.contains("youtu.be")) {
+      return "youtube";
+    } else {
+      return "other";
+    }
+  }
+
+  private String extractBpm(String text) {
+    // TODO: youtube 링크에서 bpm 가져오기
+    return "";
+  }
+
+  private String extractSpecialInstructions(String songLine, String title, String key, String artist, String url) {
     String line = songLine;
 
     if (title != null) {
@@ -322,11 +370,18 @@ public class ContiParserService {
       line = line.replace("/ " + artist, "").replace("/" + artist, "");
     }
 
-    if (youtubeUrl != null) {
-      Matcher matcher = YOUTUBE_URL_PATTERN.matcher(songLine);
-      if (matcher.find()) {
-        line = line.replace(matcher.group(), "");
-      }
+    if (url != null) {
+      line = line.replace(url, "");
+    }
+
+    Matcher youtubeMatcher = YOUTUBE_URL_PATTERN.matcher(line);
+    if (youtubeMatcher.find()) {
+      line = line.replace(youtubeMatcher.group(), "");
+    }
+
+    Matcher generalMatcher = GENERAL_URL_PATTERN.matcher(line);
+    if (generalMatcher.find()) {
+      line = line.replace(generalMatcher.group(), "");
     }
 
     StringBuilder instructions = new StringBuilder();

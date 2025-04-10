@@ -54,7 +54,7 @@ class ContiParserServiceTest {
     // then
     assertThat(result).isNotNull();
     assertThat(result.getTitle()).isEqualTo("Alive");
-    assertThat(result.getPerformanceDate()).isEqualTo(LocalDate.of(2025, 4, 5));
+    assertThat(result.getScheduledAt()).isEqualTo(LocalDate.of(2025, 4, 5));
     assertThat(result.getCreator()).isEqualTo(testUser);
     assertThat(result.getSongs()).hasSize(3);
 
@@ -84,31 +84,31 @@ class ContiParserServiceTest {
 
     String yyyymmdd = "20250405 콘티\n1. 테스트 곡 E";
     Conti result1 = contiParserService.parseContiText(yyyymmdd, testUser);
-    assertThat(result1.getPerformanceDate())
+    assertThat(result1.getScheduledAt())
         .as("Failed for YYYYMMDD format")
         .isEqualTo(expectedDate);
 
     String yyyyDashMmDashDd = "2025-04-05 콘티\n1. 테스트 곡 E";
     Conti result2 = contiParserService.parseContiText(yyyyDashMmDashDd, testUser);
-    assertThat(result2.getPerformanceDate())
+    assertThat(result2.getScheduledAt())
         .as("Failed for YYYY-MM-DD format")
         .isEqualTo(expectedDate);
 
     String yyyySlashMmSlashDd = "2025/04/05 콘티\n1. 테스트 곡 E";
     Conti result3 = contiParserService.parseContiText(yyyySlashMmSlashDd, testUser);
-    assertThat(result3.getPerformanceDate())
+    assertThat(result3.getScheduledAt())
         .as("Failed for YYYY/MM/DD format")
         .isEqualTo(expectedDate);
 
     String koreanFormat = "2025년 4월 5일 콘티\n1. 테스트 곡 E";
     Conti result4 = contiParserService.parseContiText(koreanFormat, testUser);
-    assertThat(result4.getPerformanceDate())
+    assertThat(result4.getScheduledAt())
         .as("Failed for Korean date format")
         .isEqualTo(expectedDate);
 
     String mmSlashDd = "04/05 콘티\n1. 테스트 곡 E";
     Conti result5 = contiParserService.parseContiText(mmSlashDd, testUser);
-    assertThat(result5.getPerformanceDate())
+    assertThat(result5.getScheduledAt())
         .as("Failed for MM/DD format")
         .isEqualTo(LocalDate.of(LocalDate.now().getYear(), 4, 5));
   }
@@ -136,6 +136,53 @@ class ContiParserServiceTest {
   }
 
   @Test
+  @DisplayName("다양한 URL 타입 파싱 테스트")
+  void parseNonYoutubeUrls() {
+    // given
+    String contiText = "20250111 찬양집회\n\n" +
+        "1. 주님의 시간에 C->D (76)\n" +
+        "일단 레퍼런스대로\n" +
+        "http://cafe.naver.com/naehansarang79/140\n\n" +
+        "2. 나의 왕 나의 주 A / J-US (이사랑 인도)\n" +
+        "레퍼런스대로\n" +
+        "3. 주의 자녀로 산다는 것은 G\n" +
+        "4. 천성을 향해 A / KCD\n" +
+        "5. 온땅은 주의 것 G / 캠퍼스워십\n" +
+        "주제 : Children of God";
+
+    // when
+    Conti result = contiParserService.parseContiText(contiText, testUser);
+
+    // then
+    assertThat(result.getSongs()).hasSize(5);
+
+    Song song1 = result.getSongs().get(0);
+    assertThat(song1.getTitle()).isEqualTo("주님의 시간에");
+    assertThat(song1.getYoutubeUrl()).isNull();
+    assertThat(song1.getReferenceUrl()).isEqualTo("http://cafe.naver.com/naehansarang79/140");
+    assertThat(song1.getUrlType()).isEqualTo("other");
+
+    Song song2 = result.getSongs().get(1);
+    assertThat(song2.getTitle()).isEqualTo("나의 왕 나의 주");
+    assertThat(song2.getYoutubeUrl()).isNull();
+
+    // 3번 곡 - 멜론 링크
+    Song song3 = result.getSongs().get(2);
+    assertThat(song3.getTitle()).isEqualTo("주의 자녀로 산다는 것은");
+    assertThat(song3.getYoutubeUrl()).isNull();
+
+    // 4번 곡 - 사운드클라우드 링크
+    Song song4 = result.getSongs().get(3);
+    assertThat(song4.getTitle()).isEqualTo("천성을 향해");
+    assertThat(song4.getYoutubeUrl()).isNull();
+
+    // 5번 곡 - 다음 뮤직 링크 (기타 URL 분류)
+    Song song5 = result.getSongs().get(4);
+    assertThat(song5.getTitle()).isEqualTo("온땅은 주의 것");
+    assertThat(song5.getYoutubeUrl()).isNull();
+  }
+
+  @Test
   @DisplayName("복잡한 콘티 예제 파싱 테스트")
   void parseComplexContiExample() {
     // given
@@ -158,7 +205,7 @@ class ContiParserServiceTest {
 
     // then
     assertThat(result.getTitle()).isEqualTo("Children of God");
-    assertThat(result.getPerformanceDate()).isEqualTo(LocalDate.of(2025, 1, 11));
+    assertThat(result.getScheduledAt()).isEqualTo(LocalDate.of(2025, 1, 11));
     assertThat(result.getSongs()).hasSize(3);
 
     Song firstSong = result.getSongs().get(0);
@@ -197,7 +244,7 @@ class ContiParserServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getCreator()).isNull();
     assertThat(result.getTitle()).isEqualTo("20250405 찬양집회 콘티");
-    assertThat(result.getPerformanceDate()).isEqualTo(LocalDate.of(2025, 4, 5));
+    assertThat(result.getScheduledAt()).isEqualTo(LocalDate.of(2025, 4, 5));
   }
 
   @Test
@@ -215,6 +262,6 @@ class ContiParserServiceTest {
     // then
     assertThat(result).isNotNull();
     assertThat(result.getTitle()).isEqualTo("2025년 2월 15일 찬양집회 콘티");
-    assertThat(result.getPerformanceDate()).isEqualTo(LocalDate.of(2025, 2, 15));
+    assertThat(result.getScheduledAt()).isEqualTo(LocalDate.of(2025, 2, 15));
   }
 }
