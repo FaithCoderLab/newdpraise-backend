@@ -103,7 +103,7 @@ public class UserProfileApiTest {
         .name("수밍")
         .instrument("피아노")
         .role(Role.USER)
-        .enabled(true)
+        .isActive(true)
         .build();
     return userRepository.save(user);
   }

@@ -17,6 +17,8 @@ import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
 import faithcoderlab.newdpraise.global.service.FileService;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import net.datafaker.Faker;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,21 +44,33 @@ class UserServiceTest {
   @InjectMocks
   private UserService userService;
 
+  private Faker faker;
+
+  @BeforeEach
+  void setUp() {
+    faker = new Faker();
+  }
+
   @Test
   @DisplayName("회원가입 성공")
   void signupSuccess() {
     // given
+    String email = faker.internet().emailAddress();
+    String password = faker.internet().password(8, 16, true, true);
+    String name = faker.name().fullName();
+    String instrument = faker.music().instrument();
+
     SignUpRequest request = SignUpRequest.builder()
-        .email("suming@example.com")
-        .password("Password123!")
-        .name("수밍")
-        .instrument("피아노")
+        .email(email)
+        .password(password)
+        .name(name)
+        .instrument(instrument)
         .build();
 
     when(userRepository.existsByEmail(anyString())).thenReturn(false);
     when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
-    User savedUser = createTestUser(1L);
+    User savedUser = createTestUser(1L, email, name, instrument);
     savedUser.setPassword("encodedPassword");
 
     when(userRepository.save(any(User.class))).thenReturn(savedUser);
@@ -66,9 +80,9 @@ class UserServiceTest {
 
     // then
     assertThat(response).isNotNull();
-    assertThat(response.getEmail()).isEqualTo(savedUser.getEmail());
-    assertThat(response.getName()).isEqualTo(savedUser.getName());
-    assertThat(response.getInstrument()).isEqualTo(savedUser.getInstrument());
+    assertThat(response.getEmail()).isEqualTo(email);
+    assertThat(response.getName()).isEqualTo(name);
+    assertThat(response.getInstrument()).isEqualTo(instrument);
     assertThat(response.getRole()).isEqualTo(Role.USER);
 
     verify(userRepository).existsByEmail(request.getEmail());
@@ -80,12 +94,12 @@ class UserServiceTest {
   @DisplayName("회원가입 실패 - 중복 이메일")
   void signupFailWithDuplicateEmail() {
     // given
-    String duplicateEmail = "existing@example.com";
+    String duplicateEmail = faker.internet().emailAddress();
     SignUpRequest request = SignUpRequest.builder()
-        .email("existing@example.com")
-        .password("Password123!")
-        .name("테스트유저")
-        .instrument("기타")
+        .email(duplicateEmail)
+        .password(faker.internet().password(8, 16, true, true))
+        .name(faker.name().fullName())
+        .instrument(faker.music().instrument())
         .build();
 
     when(userRepository.existsByEmail(duplicateEmail)).thenReturn(true);
@@ -103,8 +117,12 @@ class UserServiceTest {
   @DisplayName("사용자 프로필 조회 - 성공")
   void getUserProfileSuccess() {
     // given
-    Long userId = 1L;
-    User user = createTestUser(userId);
+    Long userId = faker.number().randomNumber();
+    String email = faker.internet().emailAddress();
+    String name = faker.name().fullName();
+    String instrument = faker.music().instrument();
+
+    User user = createTestUser(userId, email, name, instrument);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
     // when
@@ -113,16 +131,16 @@ class UserServiceTest {
     // then
     assertThat(response).isNotNull();
     assertThat(response.getId()).isEqualTo(userId);
-    assertThat(response.getEmail()).isEqualTo(user.getEmail());
-    assertThat(response.getName()).isEqualTo(user.getName());
-    assertThat(response.getInstrument()).isEqualTo(user.getInstrument());
+    assertThat(response.getEmail()).isEqualTo(email);
+    assertThat(response.getName()).isEqualTo(name);
+    assertThat(response.getInstrument()).isEqualTo(instrument);
   }
 
   @Test
   @DisplayName("사용자 프로필 조회 - 실패 (사용자 없음)")
   void getUserProfileNotFound() {
     // given
-    Long userId = 999L;
+    Long userId = faker.number().randomNumber();
     when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
     // when & then
@@ -135,8 +153,11 @@ class UserServiceTest {
   @DisplayName("현재 사용자 프로필 조회 - 성공")
   void getCurrentUserProfileSuccess() {
     // given
-    String email = "suming@example.com";
-    User user = createTestUser(1L);
+    String email = faker.internet().emailAddress();
+    String name = faker.name().fullName();
+    String instrument = faker.music().instrument();
+
+    User user = createTestUser(1L, email, name, instrument);
     when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 
     // when
@@ -145,18 +166,25 @@ class UserServiceTest {
     // then
     assertThat(response).isNotNull();
     assertThat(response.getEmail()).isEqualTo(email);
-    assertThat(response.getName()).isEqualTo(user.getName());
+    assertThat(response.getName()).isEqualTo(name);
   }
 
   @Test
   @DisplayName("프로필 업데이트 - 성공")
   void updateProfileSuccess() {
     // given
-    String email = "suming@example.com";
-    User user = createTestUser(1L);
+    String email = faker.internet().emailAddress();
+    String originalName = faker.name().fullName();
+    String originalInstrument = faker.music().instrument();
+
+    User user = createTestUser(1L, email, originalName, originalInstrument);
+
+    String newName = faker.name().fullName();
+    String newInstrument = faker.music().instrument();
+
     UpdateProfileRequest request = new UpdateProfileRequest();
-    request.setName("수민");
-    request.setInstrument("aux keys");
+    request.setName(newName);
+    request.setInstrument(newInstrument);
 
     when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
     when(userRepository.save(any(User.class))).thenReturn(user);
@@ -166,8 +194,8 @@ class UserServiceTest {
 
     // then
     assertThat(response).isNotNull();
-    assertThat(response.getName()).isEqualTo(request.getName());
-    assertThat(response.getInstrument()).isEqualTo(request.getInstrument());
+    assertThat(response.getName()).isEqualTo(newName);
+    assertThat(response.getInstrument()).isEqualTo(newInstrument);
     verify(userRepository).save(user);
   }
 
@@ -175,11 +203,18 @@ class UserServiceTest {
   @DisplayName("프로필 이미지 업데이트 - 성공")
   void updateProfileImageSuccess() {
     // given
-    String email = "suming@example.com";
-    User user = createTestUser(1L);
+    String email = faker.internet().emailAddress();
+    String name = faker.name().fullName();
+    String instrument = faker.music().instrument();
+
+    User user = createTestUser(1L, email, name, instrument);
+
+    String filename = "test_" + faker.internet().uuid() + ".jpg";
+    byte[] content = faker.lorem().paragraph().getBytes();
+
     MultipartFile file = new MockMultipartFile(
-        "file", "test.jpg", "image/jpeg", "test image content".getBytes());
-    String imagePath = "profile-images/test-image.jpg";
+        "file", filename, "image/jpeg", content);
+    String imagePath = "profile-images/" + faker.internet().uuid() + ".jpg";
 
     when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
     when(fileService.saveFile(any(MultipartFile.class), anyString())).thenReturn(imagePath);
@@ -195,16 +230,16 @@ class UserServiceTest {
     verify(userRepository).save(user);
   }
 
-  private User createTestUser(Long id) {
+  private User createTestUser(Long id, String email, String name, String instrument) {
     return User.builder()
         .id(id)
-        .email("suming@example.com")
-        .name("수밍")
-        .password("Password123!")
-        .instrument("피아노")
-        .profileImage("default.jpg")
+        .email(email)
+        .name(name)
+        .password(faker.internet().password(8, 16, true, true))
+        .instrument(instrument)
+        .profileImage(faker.internet().uuid() + ".jpg")
         .role(Role.USER)
-        .enabled(true)
+        .isActive(true)
         .createdAt(LocalDateTime.now())
         .updatedAt(LocalDateTime.now())
         .build();

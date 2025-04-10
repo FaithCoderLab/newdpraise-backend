@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,10 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class FileService {
+
+  private static final Set<String> VALID_IMAGE_EXTENSIONS = Set.of(
+      ".jpg", ".jpeg", ".png", ".gif"
+  );
 
   private final AppConfig appConfig;
 
@@ -58,11 +63,6 @@ public class FileService {
   }
 
   private boolean isValidImageExtension(String extension) {
-    return extension != null && (
-        extension.equalsIgnoreCase(".jpg") ||
-            extension.equalsIgnoreCase(".jpeg") ||
-            extension.equalsIgnoreCase(".png") ||
-            extension.equalsIgnoreCase(".gif")
-    );
+    return extension != null && VALID_IMAGE_EXTENSIONS.contains(extension.toLowerCase());
   }
 }
