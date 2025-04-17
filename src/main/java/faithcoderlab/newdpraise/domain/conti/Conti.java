@@ -1,5 +1,6 @@
 package faithcoderlab.newdpraise.domain.conti;
 
+import faithcoderlab.newdpraise.domain.song.Song;
 import faithcoderlab.newdpraise.domain.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;

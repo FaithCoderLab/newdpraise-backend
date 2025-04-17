@@ -1,5 +1,7 @@
 package faithcoderlab.newdpraise.domain.conti;
 
+import faithcoderlab.newdpraise.domain.song.Song;
+import faithcoderlab.newdpraise.domain.song.SongRepository;
 import faithcoderlab.newdpraise.domain.user.User;
 import java.time.LocalDate;
 import java.util.ArrayList;

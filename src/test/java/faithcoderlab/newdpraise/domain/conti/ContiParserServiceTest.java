@@ -1,8 +1,9 @@
 package faithcoderlab.newdpraise.domain.conti;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
+import faithcoderlab.newdpraise.domain.song.Song;
+import faithcoderlab.newdpraise.domain.song.SongRepository;
 import faithcoderlab.newdpraise.domain.user.Role;
 import faithcoderlab.newdpraise.domain.user.User;
 import java.time.LocalDate;
