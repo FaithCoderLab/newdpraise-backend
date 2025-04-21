@@ -59,13 +59,13 @@ public class ContiParserService {
       title = extractTitle(lines);
     }
 
-    LocalDate performanceDate = extractDate(contiText);
+    LocalDate scheduledAt = extractDate(contiText);
 
     List<Song> songs = extractSongs(contiText);
 
     Conti conti = Conti.builder()
         .title(title)
-        .scheduledAt(performanceDate != null ? performanceDate : LocalDate.now())
+        .scheduledAt(scheduledAt != null ? scheduledAt : LocalDate.now())
         .creator(creator)
         .songs(songs)
         .version("1.0")

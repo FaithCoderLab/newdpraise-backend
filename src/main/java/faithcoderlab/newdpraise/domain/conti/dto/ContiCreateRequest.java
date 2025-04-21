@@ -1,5 +1,6 @@
 package faithcoderlab.newdpraise.domain.conti.dto;
 
+import faithcoderlab.newdpraise.domain.conti.dto.ContiParseResponse.SongDto;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -11,12 +12,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContiParseResponse {
+public class ContiCreateRequest {
   private String title;
+  private String description;
   private LocalDate scheduledAt;
+  private String contiText;
   private List<SongDto> songs;
-  private String version;
-  private String status;
 
   @Data
   @Builder
@@ -26,7 +27,9 @@ public class ContiParseResponse {
     private String title;
     private String originalKey;
     private String performanceKey;
+    private String artist;
     private String youtubeUrl;
+    private String referenceUrl;
     private String specialInstructions;
     private String bpm;
   }
