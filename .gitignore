@@ -55,3 +55,13 @@ application-local.yml
 application-dev.yml
 application-prod.yml
 application-test.yml
+
+### Uploads and temporary files ###
+/uploads/
+/uploads/**
+/test-uploads/
+/test-uploads/**
+/tmp/
+/tmp/**
+/src/test/resources/*.mp3
+/src/test/resources/*.wav

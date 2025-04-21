@@ -1,5 +1,6 @@
 package faithcoderlab.newdpraise.domain.conti;
 
+import faithcoderlab.newdpraise.domain.song.Song;
 import faithcoderlab.newdpraise.domain.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -46,7 +47,7 @@ public class Conti {
   private String description;
 
   @Column(nullable = false)
-  private LocalDate performanceDate;
+  private LocalDate scheduledAt;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "creator_id")
