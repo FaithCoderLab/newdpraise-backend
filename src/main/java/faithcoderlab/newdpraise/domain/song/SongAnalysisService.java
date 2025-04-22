@@ -10,11 +10,13 @@ import be.tarsos.dsp.pitch.PitchDetectionHandler;
 import be.tarsos.dsp.pitch.PitchDetectionResult;
 import be.tarsos.dsp.pitch.PitchProcessor;
 import com.github.kiulian.downloader.YoutubeDownloader;
+import com.github.kiulian.downloader.YoutubeException;
 import com.github.kiulian.downloader.downloader.request.RequestVideoFileDownload;
 import com.github.kiulian.downloader.downloader.request.RequestVideoInfo;
 import com.github.kiulian.downloader.downloader.response.Response;
 import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
+import faithcoderlab.newdpraise.global.exception.SongAnalysisException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,27 +66,22 @@ public class SongAnalysisService {
   private final YoutubeDownloader youtubeDownloader;
 
   public MusicAnalysisResult analyzeMusic(String youtubeUrl) {
+    String videoId = extractVideoId(youtubeUrl);
+    if (videoId == null) {
+      throw new SongAnalysisException("유효하지 않은 유튜브 URL입니다: " + youtubeUrl);
+    }
+
+    File audioFile = null;
     try {
-      String videoId = extractVideoId(youtubeUrl);
-      if (videoId == null) {
-        log.error("유효하지 않은 유튜브 URL: {}", youtubeUrl);
-        return null;
-      }
-
-      File audioFile = downloadAudio(videoId);
-      if (audioFile == null) {
-        return null;
-      }
-
+      audioFile = downloadAudio(videoId);
       String key = detectKey(audioFile);
       int bpm = detectBPM(audioFile);
 
-      audioFile.delete();
-
       return new MusicAnalysisResult(key, bpm);
-    } catch (Exception e) {
-      log.error("유튜브 URL에서 음악 분석 중 오류 발생: {}", youtubeUrl, e);
-      return null;
+    } finally {
+      if (audioFile != null && audioFile.exists()) {
+        audioFile.delete();
+      }
     }
   }
 
@@ -100,28 +97,30 @@ public class SongAnalysisService {
       VideoInfo videoInfo = response.data();
 
       if (videoInfo == null) {
-        log.error("비디오 정보를 가져오지 못했습니다: {}", videoId);
-        return null;
+        throw new SongAnalysisException("비디오 정보를 가져올 수 없습니다. 비디오 ID: " + videoId);
       }
 
       List<AudioFormat> audioFormats = videoInfo.audioFormats();
       if (audioFormats.isEmpty()) {
-        log.error("사용 가능한 오디오 형식이 없습니다. 비디오: {}", videoId);
-        return null;
+        throw new SongAnalysisException("사용 가능한 오디오 형식이 없습니다. 비디오 ID: " + videoId);
       }
 
       AudioFormat audioFormat = audioFormats.get(0);
-
       File outputDir = new File(System.getProperty("java.io.tmpdir"));
       RequestVideoFileDownload downloadRequest = new RequestVideoFileDownload(audioFormat)
           .saveTo(outputDir)
           .renameTo(videoId + "." + audioFormat.extension());
 
       Response<File> downloadResponse = youtubeDownloader.downloadVideoFile(downloadRequest);
-      return downloadResponse.data();
+      File downloadedFile = downloadResponse.data();
+
+      if (downloadedFile == null) {
+        throw new SongAnalysisException("오디오 파일 다운로드에 실패했습니다. 비디오 ID: " + videoId);
+      }
+
+      return downloadedFile;
     } catch (Exception e) {
-      log.error("유튜브에서 오디오 다운로드 중 오류 발생: {}", videoId, e);
-      return null;
+      throw new SongAnalysisException("예기치 않은 오류 발생: " + videoId, e);
     }
   }
 
@@ -175,7 +174,7 @@ public class SongAnalysisService {
       return PITCH_CLASS_TO_KEY.get(dominantPitchClass) + (isMajor ? "" : "m");
     } catch (Exception e) {
       log.error("키 탐지 중 오류 발생: {}", e.getMessage(), e);
-      return null;
+      throw new SongAnalysisException("키 탐지에 실패했습니다.", e);
     }
   }
 
@@ -238,7 +237,7 @@ public class SongAnalysisService {
       return bpm;
     } catch (Exception e) {
       log.error("BPM 탐지 중 오류 발생: {}", e.getMessage(), e);
-      return 0;
+      throw new SongAnalysisException("BPM 탐지에 실패했습니다.", e);
     }
   }
 
