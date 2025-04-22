@@ -24,3 +24,17 @@ CREATE TABLE refresh_tokens (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE conti (
+   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+   title VARCHAR(255),
+   description TEXT,
+   scheduled_at DATE NOT NULL,
+   creator_id BIGINT,
+   version VARCHAR(50) NOT NULL,
+   original_text TEXT,
+   status VARCHAR(20) NOT NULL,
+   created_at TIMESTAMP NOT NULL,
+   updated_at TIMESTAMP,
+   FOREIGN KEY (creator_id) REFERENCES users(id)
+);

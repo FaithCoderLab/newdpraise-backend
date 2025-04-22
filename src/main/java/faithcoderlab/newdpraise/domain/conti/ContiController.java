@@ -6,6 +6,7 @@ import faithcoderlab.newdpraise.domain.conti.dto.ContiParseResponse;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiResponse;
 import faithcoderlab.newdpraise.domain.user.User;
 import faithcoderlab.newdpraise.domain.user.UserRepository;
+import faithcoderlab.newdpraise.global.exception.AuthenticationException;
 import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -112,7 +114,7 @@ public class ContiController {
 
   private User getUserFromPrincipal(Principal principal) {
     if (principal == null) {
-      throw new IllegalArgumentException("인증되지 않은 사용자입니다.");
+      throw new AuthenticationException("인증되지 않은 사용자입니다.");
     }
 
     return userRepository.findByEmail(principal.getName())
@@ -141,6 +143,21 @@ public class ContiController {
   }
 
   private ContiResponse mapToContiResponse(Conti conti) {
+    List<ContiResponse.SongDto> songDtos = new ArrayList<>();
+    if (conti.getSongs() != null) {
+      songDtos = conti.getSongs().stream()
+          .map(song -> ContiResponse.SongDto.builder()
+              .id(song.getId())
+              .title(song.getTitle())
+              .originalKey(song.getOriginalKey())
+              .performanceKey(song.getPerformanceKey())
+              .artist(song.getArtist())
+              .youtubeUrl(song.getYoutubeUrl())
+              .specialInstructions(song.getSpecialInstructions())
+              .build())
+          .toList();
+    }
+
     return ContiResponse.builder()
         .id(conti.getId())
         .title(conti.getTitle())
@@ -148,17 +165,7 @@ public class ContiController {
         .scheduledAt(conti.getScheduledAt())
         .creatorId(conti.getCreator() != null ? conti.getCreator().getId() : null)
         .creatorName(conti.getCreator() != null ? conti.getCreator().getName() : null)
-        .songs(conti.getSongs().stream()
-            .map(song -> ContiResponse.SongDto.builder()
-                .id(song.getId())
-                .title(song.getTitle())
-                .originalKey(song.getOriginalKey())
-                .performanceKey(song.getPerformanceKey())
-                .artist(song.getArtist())
-                .youtubeUrl(song.getYoutubeUrl())
-                .specialInstructions(song.getSpecialInstructions())
-                .build())
-            .collect(Collectors.toList()))
+        .songs(songDtos)
         .status(conti.getStatus().name())
         .createdAt(conti.getCreatedAt())
         .updatedAt(conti.getUpdatedAt())

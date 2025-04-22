@@ -108,4 +108,23 @@ public class GlobalExceptionHandler {
     );
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
+
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+    if (ex.getMessage().contains("인증되지 않은 사용자입니다.")) {
+      ErrorResponse errorResponse = new ErrorResponse(
+          HttpStatus.UNAUTHORIZED.value(),
+          ex.getMessage(),
+          LocalDateTime.now()
+      );
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.BAD_REQUEST.value(),
+        ex.getMessage(),
+        LocalDateTime.now()
+    );
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+  }
 }
