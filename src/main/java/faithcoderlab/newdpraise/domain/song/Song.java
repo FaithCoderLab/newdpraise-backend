@@ -2,6 +2,8 @@ package faithcoderlab.newdpraise.domain.song;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -13,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "songs")
@@ -39,7 +42,8 @@ public class Song {
 
   private String referenceUrl;
 
-  private String urlType;
+  @Enumerated(EnumType.STRING)
+  private UrlType urlType;
 
   private Integer durationSeconds;
 
@@ -66,10 +70,6 @@ public class Song {
   }
 
   public String getUrl() {
-    if (youtubeUrl != null && !youtubeUrl.isEmpty()) {
-      return youtubeUrl;
-    } else {
-      return referenceUrl;
-    }
+    return StringUtils.hasText(youtubeUrl) ? youtubeUrl : referenceUrl;
   }
 }

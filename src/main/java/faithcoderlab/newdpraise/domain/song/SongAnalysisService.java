@@ -16,8 +16,8 @@ import com.github.kiulian.downloader.downloader.request.RequestVideoInfo;
 import com.github.kiulian.downloader.downloader.response.Response;
 import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
+import faithcoderlab.newdpraise.global.exception.SongAnalysisException;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +35,22 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class SongAnalysisService {
+
+  private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
+      "(?:youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})"
+  );
+
+  private static final int AUDIO_BUFFER_SIZE = 1024;
+  private static final int AUDIO_OVERLAP = 0;
+
+  private static final float REFERENCE_FREQUENCY_A4 = 440.0f;
+  private static final double OCTAVE_RATIO = 2.0;
+  private static final int SEMITONES_PER_OCTAVE = 12;
+
+  private static final float MIN_BEAT_INTERVAL = 0.1f;
+  private static final float MAX_BEAT_INTERVAL = 2.0f;
+  private static final int MIN_BPM = 60;
+  private static final int MAX_BPM = 200;
 
   private static final Map<Integer, String> PITCH_CLASS_TO_KEY = Map.ofEntries(
       Map.entry(0, "C"),
@@ -54,33 +70,27 @@ public class SongAnalysisService {
   private final YoutubeDownloader youtubeDownloader;
 
   public MusicAnalysisResult analyzeMusic(String youtubeUrl) {
+    String videoId = extractVideoId(youtubeUrl);
+    if (videoId == null) {
+      throw new SongAnalysisException("유효하지 않은 유튜브 URL입니다: " + youtubeUrl);
+    }
+
+    File audioFile = null;
     try {
-      String videoId = extractVideoId(youtubeUrl);
-      if (videoId == null) {
-        log.error("유효하지 않은 유튜브 URL: {}", youtubeUrl);
-        return null;
-      }
-
-      File audioFile = downloadAudio(videoId);
-      if (audioFile == null) {
-        return null;
-      }
-
+      audioFile = downloadAudio(videoId);
       String key = detectKey(audioFile);
       int bpm = detectBPM(audioFile);
 
-      audioFile.delete();
-
       return new MusicAnalysisResult(key, bpm);
-    } catch (Exception e) {
-      log.error("유튜브 URL에서 음악 분석 중 오류 발생: {}", youtubeUrl, e);
-      return null;
+    } finally {
+      if (audioFile != null && audioFile.exists()) {
+        audioFile.delete();
+      }
     }
   }
 
   String extractVideoId(String youtubeUrl) {
-    Pattern pattern = Pattern.compile("(?:youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})");
-    Matcher matcher = pattern.matcher(youtubeUrl);
+    Matcher matcher = YOUTUBE_URL_PATTERN.matcher(youtubeUrl);
     return matcher.find() ? matcher.group(1) : null;
   }
 
@@ -91,85 +101,76 @@ public class SongAnalysisService {
       VideoInfo videoInfo = response.data();
 
       if (videoInfo == null) {
-        log.error("비디오 정보를 가져오지 못했습니다: {}", videoId);
-        return null;
+        throw new SongAnalysisException("비디오 정보를 가져올 수 없습니다. 비디오 ID: " + videoId);
       }
 
       List<AudioFormat> audioFormats = videoInfo.audioFormats();
       if (audioFormats.isEmpty()) {
-        log.error("사용 가능한 오디오 형식이 없습니다. 비디오: {}", videoId);
-        return null;
+        throw new SongAnalysisException("사용 가능한 오디오 형식이 없습니다. 비디오 ID: " + videoId);
       }
 
       AudioFormat audioFormat = audioFormats.get(0);
-
       File outputDir = new File(System.getProperty("java.io.tmpdir"));
       RequestVideoFileDownload downloadRequest = new RequestVideoFileDownload(audioFormat)
           .saveTo(outputDir)
           .renameTo(videoId + "." + audioFormat.extension());
 
       Response<File> downloadResponse = youtubeDownloader.downloadVideoFile(downloadRequest);
-      return downloadResponse.data();
+      File downloadedFile = downloadResponse.data();
+
+      if (downloadedFile == null) {
+        throw new SongAnalysisException("오디오 파일 다운로드에 실패했습니다. 비디오 ID: " + videoId);
+      }
+
+      return downloadedFile;
+    } catch (SongAnalysisException e) {
+      throw e;
     } catch (Exception e) {
-      log.error("유튜브에서 오디오 다운로드 중 오류 발생: {}", videoId, e);
-      return null;
+      throw new SongAnalysisException("예기치 않은 오류 발생: " + videoId, e);
     }
   }
 
   String detectKey(File audioFile) {
     try {
       AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
-
       float sampleRate = audioInputStream.getFormat().getSampleRate();
-      int bufferSize = 1024;
-      int overlap = 0;
 
-      int[] pitchDistribution = new int[12];
+      PitchDistribution pitchDistribution = new PitchDistribution();
 
       AudioDispatcher dispatcher = new AudioDispatcher(
           new JVMAudioInputStream(audioInputStream),
-          bufferSize,
-          overlap
+          AUDIO_BUFFER_SIZE,
+          AUDIO_OVERLAP
       );
 
       dispatcher.addAudioProcessor(new PitchProcessor(
           PitchProcessor.PitchEstimationAlgorithm.YIN,
           sampleRate,
-          bufferSize,
-          new PitchDetectionHandler() {
-            @Override
-            public void handlePitch(PitchDetectionResult result,
-                AudioEvent event) {
-              if (result.getPitch() != -1) {
-                float pitch = result.getPitch();
-                int pitchClass = (int) (12 * (Math.log(pitch / 440) / Math.log(2))) % 12;
-                if (pitchClass < 0) pitchClass += 12;
+          AUDIO_BUFFER_SIZE,
+          (PitchDetectionResult result, AudioEvent event) -> {
+            if (result.getPitch() != -1) {
+              float pitch = result.getPitch();
+              int pitchClass = (int) (SEMITONES_PER_OCTAVE * (Math.log(pitch / REFERENCE_FREQUENCY_A4) / Math.log(OCTAVE_RATIO))) % SEMITONES_PER_OCTAVE;
+              if (pitchClass < 0) pitchClass += SEMITONES_PER_OCTAVE;
 
-                pitchDistribution[pitchClass]++;
-              }
+              pitchDistribution.addPitchClass(pitchClass);
             }
           }
       ));
 
       dispatcher.run();
 
-      int maxCount = -1;
-      int dominantPitchClass = 0;
-
-      for (int i = 0; i < 12; i++) {
-        if (pitchDistribution[i] > maxCount) {
-          maxCount = pitchDistribution[i];
-          dominantPitchClass = i;
-        }
+      if (!pitchDistribution.hasEnoughData()) {
+        throw new SongAnalysisException("키 감지를 위한 충분한 데이터가 수집되지 않았습니다.");
       }
 
-      boolean isMajor = pitchDistribution[(dominantPitchClass + 4) % 12] >
-          pitchDistribution[(dominantPitchClass + 3) % 12];
+      int dominantPitchClass = pitchDistribution.getDominantPitchClass();
+      boolean isMajor = pitchDistribution.isMajor();
 
       return PITCH_CLASS_TO_KEY.get(dominantPitchClass) + (isMajor ? "" : "m");
     } catch (Exception e) {
       log.error("키 탐지 중 오류 발생: {}", e.getMessage(), e);
-      return null;
+      throw new SongAnalysisException("키 탐지에 실패했습니다.", e);
     }
   }
 
@@ -178,9 +179,6 @@ public class SongAnalysisService {
       AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
 
       float sampleRate = audioInputStream.getFormat().getSampleRate();
-      int bufferSize = 1024;
-      int overlap = 0;
-
       final List<Float> beatTimes = new ArrayList<>();
 
       OnsetHandler beatHandler = (time, salience) -> {
@@ -191,8 +189,8 @@ public class SongAnalysisService {
 
       AudioDispatcher dispatcher = new AudioDispatcher(
           new JVMAudioInputStream(audioInputStream),
-          bufferSize,
-          overlap
+          AUDIO_BUFFER_SIZE,
+          AUDIO_OVERLAP
       );
 
       ComplexOnsetDetector onsetDetector = new ComplexOnsetDetector((int) sampleRate);
@@ -212,7 +210,7 @@ public class SongAnalysisService {
 
       for (int i = 1; i < beatTimes.size(); i++) {
         float interval = beatTimes.get(i) - beatTimes.get(i - 1);
-        if (interval > 0.1 && interval < 2.0) {
+        if (interval > MIN_BEAT_INTERVAL && interval < MAX_BEAT_INTERVAL) {
           totalIntervals += interval;
           count++;
         }
@@ -225,17 +223,17 @@ public class SongAnalysisService {
       float averageInterval = totalIntervals / count;
       int bpm = Math.round(60f / averageInterval);
 
-      if (bpm < 60) {
+      if (bpm < MIN_BPM) {
         bpm *= 2;
       }
-      if (bpm > 200) {
+      if (bpm > MAX_BPM) {
         bpm /= 2;
       }
 
       return bpm;
     } catch (Exception e) {
       log.error("BPM 탐지 중 오류 발생: {}", e.getMessage(), e);
-      return 0;
+      throw new SongAnalysisException("BPM 탐지에 실패했습니다.", e);
     }
   }
 
