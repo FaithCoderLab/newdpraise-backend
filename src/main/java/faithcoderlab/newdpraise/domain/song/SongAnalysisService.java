@@ -43,6 +43,10 @@ public class SongAnalysisService {
   private static final int AUDIO_BUFFER_SIZE = 1024;
   private static final int AUDIO_OVERLAP = 0;
 
+  private static final float REFERENCE_FREQUENCY_A4 = 440.0f;
+  private static final double OCTAVE_RATIO = 2.0;
+  private static final int SEMITONES_PER_OCTAVE = 12;
+
   private static final float MIN_BEAT_INTERVAL = 0.1f;
   private static final float MAX_BEAT_INTERVAL = 2.0f;
   private static final int MIN_BPM = 60;
@@ -127,9 +131,9 @@ public class SongAnalysisService {
   String detectKey(File audioFile) {
     try {
       AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
-
       float sampleRate = audioInputStream.getFormat().getSampleRate();
-      int[] pitchDistribution = new int[12];
+
+      PitchDistribution pitchDistribution = new PitchDistribution();
 
       AudioDispatcher dispatcher = new AudioDispatcher(
           new JVMAudioInputStream(audioInputStream),
@@ -141,35 +145,25 @@ public class SongAnalysisService {
           PitchProcessor.PitchEstimationAlgorithm.YIN,
           sampleRate,
           AUDIO_BUFFER_SIZE,
-          new PitchDetectionHandler() {
-            @Override
-            public void handlePitch(PitchDetectionResult result,
-                AudioEvent event) {
-              if (result.getPitch() != -1) {
-                float pitch = result.getPitch();
-                int pitchClass = (int) (12 * (Math.log(pitch / 440) / Math.log(2))) % 12;
-                if (pitchClass < 0) pitchClass += 12;
+          (PitchDetectionResult result, AudioEvent event) -> {
+            if (result.getPitch() != -1) {
+              float pitch = result.getPitch();
+              int pitchClass = (int) (SEMITONES_PER_OCTAVE * (Math.log(pitch / REFERENCE_FREQUENCY_A4) / Math.log(OCTAVE_RATIO))) % SEMITONES_PER_OCTAVE;
+              if (pitchClass < 0) pitchClass += SEMITONES_PER_OCTAVE;
 
-                pitchDistribution[pitchClass]++;
-              }
+              pitchDistribution.addPitchClass(pitchClass);
             }
           }
       ));
 
       dispatcher.run();
 
-      int maxCount = -1;
-      int dominantPitchClass = 0;
-
-      for (int i = 0; i < 12; i++) {
-        if (pitchDistribution[i] > maxCount) {
-          maxCount = pitchDistribution[i];
-          dominantPitchClass = i;
-        }
+      if (!pitchDistribution.hasEnoughData()) {
+        throw new SongAnalysisException("키 감지를 위한 충분한 데이터가 수집되지 않았습니다.");
       }
 
-      boolean isMajor = pitchDistribution[(dominantPitchClass + 4) % 12] >
-          pitchDistribution[(dominantPitchClass + 3) % 12];
+      int dominantPitchClass = pitchDistribution.getDominantPitchClass();
+      boolean isMajor = pitchDistribution.isMajor();
 
       return PITCH_CLASS_TO_KEY.get(dominantPitchClass) + (isMajor ? "" : "m");
     } catch (Exception e) {
