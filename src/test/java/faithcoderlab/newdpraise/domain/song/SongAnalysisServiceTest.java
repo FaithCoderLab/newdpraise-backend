@@ -1,10 +1,9 @@
 package faithcoderlab.newdpraise.domain.song;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +15,7 @@ import com.github.kiulian.downloader.model.Extension;
 import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
 import faithcoderlab.newdpraise.domain.song.SongAnalysisService.MusicAnalysisResult;
+import faithcoderlab.newdpraise.global.exception.SongAnalysisException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -24,10 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.util.ResourceUtils;
 
 @ExtendWith(MockitoExtension.class)
 class SongAnalysisServiceTest {
@@ -47,8 +45,8 @@ class SongAnalysisServiceTest {
   @Mock
   private AudioFormat audioFormat;
 
-  @Mock
-  private Extension mockExtension;
+//  @Mock
+//  private Extension mockExtension;
 
   private SongAnalysisService songAnalysisService;
   private File testAudioFile;
@@ -59,75 +57,64 @@ class SongAnalysisServiceTest {
 
   @BeforeEach
   void setUp() throws IOException {
-    songAnalysisService = spy(new SongAnalysisService(youtubeDownloader));
+    songAnalysisService = new SongAnalysisService(youtubeDownloader);
 
     testAudioFile = File.createTempFile("test-audio", ".mp3");
     testAudioFile.deleteOnExit();
-
-    lenient().doReturn("G").when(songAnalysisService).detectKey(any(File.class));
-    lenient().doReturn(120).when(songAnalysisService).detectBPM(any(File.class));
   }
 
   @Test
   @DisplayName("유효한 유튜브 URL에서 음악 분석 성공")
   void analyzeMusicFromValidYoutubeUrl() throws Exception {
     // given
-    lenient().when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
-    lenient().when(videoInfoResponse.data()).thenReturn(videoInfo);
+    setupMocksForSuccessfulDownload();
 
-    List<AudioFormat> audioFormats = Collections.singletonList(audioFormat);
-    lenient().when(videoInfo.audioFormats()).thenReturn(audioFormats);
-
-    lenient().when(mockExtension.value()).thenReturn("mp3");
-    lenient().when(audioFormat.extension()).thenReturn(mockExtension);
-
-    lenient().when(youtubeDownloader.downloadVideoFile(any(RequestVideoFileDownload.class))).thenReturn(fileResponse);
-    lenient().when(fileResponse.data()).thenReturn(testAudioFile);
+    SongAnalysisService spyService = spy(songAnalysisService);
+    doReturn("G").when(spyService).detectKey(any(File.class));
+    doReturn(120).when(spyService).detectBPM(any(File.class));
 
     // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_1);
+    MusicAnalysisResult result = spyService.analyzeMusic(VALID_YOUTUBE_URL_1);
 
     // then
     assertThat(result).isNotNull();
+    assertThat(result.getKey()).isEqualTo("G");
+    assertThat(result.getBpm()).isEqualTo(120);
   }
 
   @Test
   @DisplayName("여러 유효한 유튜브 URL 테스트")
   void testMultipleValidYoutubeUrls() {
-    lenient().when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
-    lenient().when(videoInfoResponse.data()).thenReturn(videoInfo);
+    // given
+    setupMocksForSuccessfulDownload();
 
-    List<AudioFormat> audioFormats = Collections.singletonList(audioFormat);
-    lenient().when(videoInfo.audioFormats()).thenReturn(audioFormats);
-
-    lenient().when(mockExtension.value()).thenReturn("mp3");
-    lenient().when(audioFormat.extension()).thenReturn(mockExtension);
-
-    lenient().when(youtubeDownloader.downloadVideoFile(any(RequestVideoFileDownload.class))).thenReturn(fileResponse);
-    lenient().when(fileResponse.data()).thenReturn(testAudioFile);
+    SongAnalysisService spyService = spy(songAnalysisService);
+    doReturn("G").when(spyService).detectKey(any(File.class));
+    doReturn(120).when(spyService).detectBPM(any(File.class));
 
     String[] urls = {VALID_YOUTUBE_URL_1, VALID_YOUTUBE_URL_2, VALID_YOUTUBE_URL_3};
 
     for (String url : urls) {
       // when
-      MusicAnalysisResult result = songAnalysisService.analyzeMusic(url);
+      MusicAnalysisResult result = spyService.analyzeMusic(url);
 
       // then
       assertThat(result).isNotNull();
-      assertThat(songAnalysisService.extractVideoId(url)).isNotNull();
+      assertThat(result.getKey()).isEqualTo("G");
+      assertThat(result.getBpm()).isEqualTo(120);
     }
   }
+
   @Test
   @DisplayName("유효하지 않은 유튜브 URL 처리")
   void handleInvalidYoutubeUrl() {
     // given
     String invalidUrl = "https://example.com/not-youtube";
 
-    // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(invalidUrl);
-
-    // then
-    assertThat(result).isNull();
+    // when & then
+    assertThatThrownBy(() -> songAnalysisService.analyzeMusic(invalidUrl))
+        .isInstanceOf(SongAnalysisException.class)
+        .hasMessageContaining("유효하지 않은 유튜브 URL입니다");
   }
 
   @Test
@@ -137,11 +124,10 @@ class SongAnalysisServiceTest {
     when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
     when(videoInfoResponse.data()).thenReturn(null);
 
-    // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_1);
-
-    // then
-    assertThat(result).isNull();
+    // when & then
+    assertThatThrownBy(() -> songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_1))
+        .isInstanceOf(SongAnalysisException.class)
+        .hasMessageContaining("비디오 정보를 가져올 수 없습니다");
   }
 
   @Test
@@ -152,34 +138,22 @@ class SongAnalysisServiceTest {
     when(videoInfoResponse.data()).thenReturn(videoInfo);
     when(videoInfo.audioFormats()).thenReturn(Collections.emptyList());
 
-    // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_2);
-
-    // then
-    assertThat(result).isNull();
+    // when & then
+    assertThatThrownBy(() -> songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_2))
+        .isInstanceOf(SongAnalysisException.class)
+        .hasMessageContaining("사용 가능한 오디오 형식이 없습니다");
   }
 
   @Test
   @DisplayName("파일 다운로드 실패 처리")
   void handleFailedFileDownload() {
     // given
-    lenient().when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
-    lenient().when(videoInfoResponse.data()).thenReturn(videoInfo);
+    setupMocksForFailedDownload();
 
-    List<AudioFormat> audioFormats = Collections.singletonList(audioFormat);
-    lenient().when(videoInfo.audioFormats()).thenReturn(audioFormats);
-
-    lenient().when(mockExtension.value()).thenReturn("mp3");
-    lenient().when(audioFormat.extension()).thenReturn(mockExtension);
-
-    lenient().when(youtubeDownloader.downloadVideoFile(any(RequestVideoFileDownload.class))).thenReturn(fileResponse);
-    lenient().when(fileResponse.data()).thenReturn(null);
-
-    // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_3);
-
-    // then
-    assertThat(result).isNull();
+    // when & then
+    assertThatThrownBy(() -> songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_3))
+        .isInstanceOf(SongAnalysisException.class)
+        .hasMessageContaining("오디오 파일 다운로드에 실패했습니다");
   }
 
   @Test
@@ -189,11 +163,10 @@ class SongAnalysisServiceTest {
     when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenThrow(
         new RuntimeException("다운로드 실패"));
 
-    // when
-    MusicAnalysisResult result = songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_1);
-
-    // then
-    assertThat(result).isNull();
+    // when & then
+    assertThatThrownBy(() -> songAnalysisService.analyzeMusic(VALID_YOUTUBE_URL_1))
+        .isInstanceOf(SongAnalysisException.class)
+        .hasMessageContaining("예기치 않은 오류 발생");
   }
 
   @Test
@@ -213,5 +186,33 @@ class SongAnalysisServiceTest {
     assertThat(fullUrlId).isEqualTo("R9tUikvBv5M");
     assertThat(shortUrlId).isEqualTo("R9tUikvBv5M");
     assertThat(invalidUrlId).isNull();
+  }
+
+  private void setupMocksForSuccessfulDownload() {
+    when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
+    when(videoInfoResponse.data()).thenReturn(videoInfo);
+
+    List<AudioFormat> audioFormats = Collections.singletonList(audioFormat);
+    when(videoInfo.audioFormats()).thenReturn(audioFormats);
+
+//    when(mockExtension.value()).thenReturn("mp3");
+//    when(audioFormat.extension()).thenReturn(mockExtension);
+
+    when(youtubeDownloader.downloadVideoFile(any(RequestVideoFileDownload.class))).thenReturn(fileResponse);
+    when(fileResponse.data()).thenReturn(testAudioFile);
+  }
+
+  private void setupMocksForFailedDownload() {
+    when(youtubeDownloader.getVideoInfo(any(RequestVideoInfo.class))).thenReturn(videoInfoResponse);
+    when(videoInfoResponse.data()).thenReturn(videoInfo);
+
+    List<AudioFormat> audioFormats = Collections.singletonList(audioFormat);
+    when(videoInfo.audioFormats()).thenReturn(audioFormats);
+
+//    when(mockExtension.value()).thenReturn("mp3");
+//    when(audioFormat.extension()).thenReturn(mockExtension);
+
+    when(youtubeDownloader.downloadVideoFile(any(RequestVideoFileDownload.class))).thenReturn(fileResponse);
+    when(fileResponse.data()).thenReturn(null);
   }
 }

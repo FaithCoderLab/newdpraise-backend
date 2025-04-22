@@ -123,6 +123,8 @@ public class SongAnalysisService {
       }
 
       return downloadedFile;
+    } catch (SongAnalysisException e) {
+      throw e;
     } catch (Exception e) {
       throw new SongAnalysisException("예기치 않은 오류 발생: " + videoId, e);
     }
