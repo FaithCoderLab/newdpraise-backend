@@ -2,6 +2,7 @@ package faithcoderlab.newdpraise.domain.conti;
 
 import faithcoderlab.newdpraise.domain.song.Song;
 import faithcoderlab.newdpraise.domain.song.SongRepository;
+import faithcoderlab.newdpraise.domain.song.UrlType;
 import faithcoderlab.newdpraise.domain.user.User;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -202,13 +203,13 @@ public class ContiParserService {
           url = extractUrl(songLine);
         }
 
-        String urlType = getUrlType(url);
+        UrlType urlType = UrlType.fromUrl(url);
 
         String youtubeUrl = null;
         String referenceUrl = null;
 
         if (url != null) {
-          if ("youtube".equals(urlType)) {
+          if (urlType == UrlType.YOUTUBE) {
             youtubeUrl = url;
           } else {
             referenceUrl = url;
@@ -221,9 +222,6 @@ public class ContiParserService {
         );
 
         String bpm = extractBpm(additionalInfo.toString());
-        if (bpm == null) {
-          bpm = extractBpm(songLine);
-        }
 
         if (!title.isEmpty()) {
           Song song = Song.builder()
@@ -233,15 +231,13 @@ public class ContiParserService {
               .artist(artist)
               .youtubeUrl(youtubeUrl)
               .referenceUrl(referenceUrl)
-              .urlType(urlType)
+              .urlType(urlType != null ? urlType.getValue() : null)
               .specialInstructions(specialInstructions)
               .bpm(bpm)
               .build();
 
           songs.add(song);
         }
-      } else if (!foundSongLine) {
-        continue;
       }
     }
 
@@ -340,16 +336,8 @@ public class ContiParserService {
     return null;
   }
 
-  private String getUrlType(String url) {
-    if (url == null) {
-      return null;
-    }
-
-    if (url.contains("youtube.com") || url.contains("youtu.be")) {
-      return "youtube";
-    } else {
-      return "other";
-    }
+  private UrlType determineUrlType(String url) {
+    return UrlType.fromUrl(url);
   }
 
   private String extractBpm(String text) {

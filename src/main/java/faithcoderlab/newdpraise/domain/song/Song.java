@@ -2,6 +2,8 @@ package faithcoderlab.newdpraise.domain.song;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -40,7 +42,8 @@ public class Song {
 
   private String referenceUrl;
 
-  private String urlType;
+  @Enumerated(EnumType.STRING)
+  private UrlType urlType;
 
   private Integer durationSeconds;
 
