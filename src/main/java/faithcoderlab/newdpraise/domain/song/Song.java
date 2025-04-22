@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "songs")
@@ -66,10 +67,6 @@ public class Song {
   }
 
   public String getUrl() {
-    if (youtubeUrl != null && !youtubeUrl.isEmpty()) {
-      return youtubeUrl;
-    } else {
-      return referenceUrl;
-    }
+    return StringUtils.hasText(youtubeUrl) ? youtubeUrl : referenceUrl;
   }
 }

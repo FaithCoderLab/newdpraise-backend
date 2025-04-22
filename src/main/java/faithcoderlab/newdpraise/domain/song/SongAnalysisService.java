@@ -10,14 +10,12 @@ import be.tarsos.dsp.pitch.PitchDetectionHandler;
 import be.tarsos.dsp.pitch.PitchDetectionResult;
 import be.tarsos.dsp.pitch.PitchProcessor;
 import com.github.kiulian.downloader.YoutubeDownloader;
-import com.github.kiulian.downloader.YoutubeException;
 import com.github.kiulian.downloader.downloader.request.RequestVideoFileDownload;
 import com.github.kiulian.downloader.downloader.request.RequestVideoInfo;
 import com.github.kiulian.downloader.downloader.response.Response;
 import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +33,18 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class SongAnalysisService {
+
+  private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
+      "(?:youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})"
+  );
+
+  private static final int AUDIO_BUFFER_SIZE = 1024;
+  private static final int AUDIO_OVERLAP = 0;
+
+  private static final float MIN_BEAT_INTERVAL = 0.1f;
+  private static final float MAX_BEAT_INTERVAL = 2.0f;
+  private static final int MIN_BPM = 60;
+  private static final int MAX_BPM = 200;
 
   private static final Map<Integer, String> PITCH_CLASS_TO_KEY = Map.ofEntries(
       Map.entry(0, "C"),
@@ -79,8 +89,7 @@ public class SongAnalysisService {
   }
 
   String extractVideoId(String youtubeUrl) {
-    Pattern pattern = Pattern.compile("(?:youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})");
-    Matcher matcher = pattern.matcher(youtubeUrl);
+    Matcher matcher = YOUTUBE_URL_PATTERN.matcher(youtubeUrl);
     return matcher.find() ? matcher.group(1) : null;
   }
 
@@ -121,21 +130,18 @@ public class SongAnalysisService {
       AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
 
       float sampleRate = audioInputStream.getFormat().getSampleRate();
-      int bufferSize = 1024;
-      int overlap = 0;
-
       int[] pitchDistribution = new int[12];
 
       AudioDispatcher dispatcher = new AudioDispatcher(
           new JVMAudioInputStream(audioInputStream),
-          bufferSize,
-          overlap
+          AUDIO_BUFFER_SIZE,
+          AUDIO_OVERLAP
       );
 
       dispatcher.addAudioProcessor(new PitchProcessor(
           PitchProcessor.PitchEstimationAlgorithm.YIN,
           sampleRate,
-          bufferSize,
+          AUDIO_BUFFER_SIZE,
           new PitchDetectionHandler() {
             @Override
             public void handlePitch(PitchDetectionResult result,
@@ -178,9 +184,6 @@ public class SongAnalysisService {
       AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
 
       float sampleRate = audioInputStream.getFormat().getSampleRate();
-      int bufferSize = 1024;
-      int overlap = 0;
-
       final List<Float> beatTimes = new ArrayList<>();
 
       OnsetHandler beatHandler = (time, salience) -> {
@@ -191,8 +194,8 @@ public class SongAnalysisService {
 
       AudioDispatcher dispatcher = new AudioDispatcher(
           new JVMAudioInputStream(audioInputStream),
-          bufferSize,
-          overlap
+          AUDIO_BUFFER_SIZE,
+          AUDIO_OVERLAP
       );
 
       ComplexOnsetDetector onsetDetector = new ComplexOnsetDetector((int) sampleRate);
@@ -212,7 +215,7 @@ public class SongAnalysisService {
 
       for (int i = 1; i < beatTimes.size(); i++) {
         float interval = beatTimes.get(i) - beatTimes.get(i - 1);
-        if (interval > 0.1 && interval < 2.0) {
+        if (interval > MIN_BEAT_INTERVAL && interval < MAX_BEAT_INTERVAL) {
           totalIntervals += interval;
           count++;
         }
@@ -225,10 +228,10 @@ public class SongAnalysisService {
       float averageInterval = totalIntervals / count;
       int bpm = Math.round(60f / averageInterval);
 
-      if (bpm < 60) {
+      if (bpm < MIN_BPM) {
         bpm *= 2;
       }
-      if (bpm > 200) {
+      if (bpm > MAX_BPM) {
         bpm /= 2;
       }
 
