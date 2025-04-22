@@ -231,7 +231,7 @@ public class ContiParserService {
               .artist(artist)
               .youtubeUrl(youtubeUrl)
               .referenceUrl(referenceUrl)
-              .urlType(urlType != null ? urlType.getValue() : null)
+              .urlType(urlType)
               .specialInstructions(specialInstructions)
               .bpm(bpm)
               .build();
