@@ -16,11 +16,11 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
 
-logging:
-  level:
-    org.springframework: DEBUG
-    org.hibernate: DEBUG
-    faithcoderlab.newdpraise: DEBUG
+#logging:
+#  level:
+#    org.springframework: DEBUG
+#    org.hibernate: DEBUG
+#    faithcoderlab.newdpraise: DEBUG
 
 
 # Youtube API 설정
