@@ -31,6 +31,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -116,6 +117,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @GetMapping
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ContiResponse>> getContiList(
       Principal principal,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate startDate,
@@ -148,6 +150,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @GetMapping("/paged")
+  @Transactional(readOnly = true)
   public ResponseEntity<Page<ContiResponse>> getPagedContiList(
       Principal principal,
       @RequestParam(defaultValue = "0") int page,
@@ -174,6 +177,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @PostMapping("/search")
+  @Transactional(readOnly = true)
   public ResponseEntity<Page<ContiResponse>> advancedSearch(
       @RequestBody ContiSearchRequest request,
       @RequestParam(defaultValue = "0") int page,
@@ -241,6 +245,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @GetMapping("/upcoming")
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ContiResponse>> getUpcomingContis(
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
       Principal principal
@@ -263,6 +268,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @GetMapping("/past")
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ContiResponse>> getPastContis(
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
       Principal principal
@@ -285,6 +291,7 @@ public class ContiController {
       @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
   })
   @GetMapping("/status/{status}")
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ContiResponse>> getContisByStatus(
       @PathVariable ContiStatus status,
       @RequestParam(required = false, defaultValue = "false") boolean onlyMine,
@@ -314,6 +321,7 @@ public class ContiController {
       @ApiResponse(responseCode = "404", description = "콘티를 찾을 수 없음")
   })
   @GetMapping("/{contiId}")
+  @Transactional(readOnly = true)
   public ResponseEntity<ContiResponse> getContiDetail(
       @PathVariable Long contiId, Principal principal
   ) {

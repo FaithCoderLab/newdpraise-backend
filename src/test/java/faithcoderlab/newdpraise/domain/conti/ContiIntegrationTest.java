@@ -238,7 +238,7 @@ public class ContiIntegrationTest {
         .andExpect(jsonPath("$[?(@.title == '테스트 콘티')]").exists())
         .andExpect(jsonPath("$[?(@.title == '다른 콘티')]").exists());
 
-    mockMvc.perform(get("conti/paged")
+    mockMvc.perform(get("/conti/paged")
             .param("page", "0")
             .param("size", "10")
             .param("sort", "title"))

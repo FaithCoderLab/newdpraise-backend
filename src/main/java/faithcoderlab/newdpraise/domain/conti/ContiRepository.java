@@ -24,6 +24,7 @@ public interface ContiRepository extends JpaRepository<Conti, Long> {
 
   List<Conti> findByTitleContainingIgnoreCaseOrderByScheduledAtDesc(String keyword);
 
+  @Query("SELECT c FROM Conti c WHERE c.creator = :creator AND UPPER(c.title) LIKE UPPER(CONCAT('%', :keyword, '%')) ORDER BY c.scheduledAt DESC")
   List<Conti> findByCreatorAndTitleContainingIgnoreCaseOrderByScheduledAtDesc(User creator,
       String keyword);
 
