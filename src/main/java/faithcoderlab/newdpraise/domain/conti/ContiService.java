@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ContiService {
 
   private final ContiRepository contiRepository;
@@ -122,23 +123,19 @@ public class ContiService {
     return contiRepository.save(conti);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> getUserContiList(User user) {
     return contiRepository.findByCreatorOrderByScheduledAtDesc(user);
   }
 
-  @Transactional(readOnly = true)
   public Page<Conti> getUserContiList(User user, Pageable pageable) {
     return contiRepository.findByCreator(user, pageable);
   }
 
-  @Transactional(readOnly = true)
   public Conti getContiById(Long contiId) {
     return contiRepository.findById(contiId)
         .orElseThrow(() -> new ResourceNotFoundException("콘티를 찾을 수 없습니다. ID: " + contiId));
   }
 
-  @Transactional(readOnly = true)
   public Conti getContiByIdAndCreator(Long contiId, User creator) {
     Conti conti = getContiById(contiId);
     if (conti.getCreator() != null && !conti.getCreator().getId().equals(creator.getId())) {
@@ -160,30 +157,25 @@ public class ContiService {
     contiRepository.delete(conti);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> searchByDateRange(LocalDate startDate, LocalDate endDate) {
     return contiRepository.findByScheduledAtBetweenOrderByScheduledAtDesc(startDate, endDate);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> searchByTitle(String keyword) {
     return contiRepository.findByTitleContainingIgnoreCaseOrderByScheduledAtDesc(keyword);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> searchByTitleForUser(User user, String keyword) {
     return contiRepository.findByCreatorAndTitleContainingIgnoreCaseOrderByScheduledAtDesc(user,
         keyword);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> searchByDateRangeAndTitle(LocalDate startDate, LocalDate endDate,
       String keyword) {
     return contiRepository.findByScheduledAtBetweenAndTitleContainingIgnoreCaseOrderByScheduledAtDesc(
         startDate, endDate, keyword);
   }
 
-  @Transactional(readOnly = true)
   public Page<Conti> advancedSearch(ContiSearchRequest request, Pageable pageable) {
     return contiRepository.searchContis(
         request.getStartDate(),
@@ -195,22 +187,18 @@ public class ContiService {
     );
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> getUpcomingContis(LocalDate date) {
     return contiRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(date);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> getPastContis(LocalDate date) {
     return contiRepository.findByScheduledAtLessThanEqualOrderByScheduledAtDesc(date);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> getContisByStatus(ContiStatus status) {
     return contiRepository.findByStatus(status);
   }
 
-  @Transactional(readOnly = true)
   public List<Conti> getUserContisByStatus(User user, ContiStatus status) {
     return contiRepository.findByCreatorAndStatus(user, status);
   }
