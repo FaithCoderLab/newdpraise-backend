@@ -3,9 +3,13 @@ package faithcoderlab.newdpraise.domain.conti;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiCreateRequest;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiSearchRequest;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiUpdateRequest;
+import faithcoderlab.newdpraise.domain.conti.share.ContiShare;
+import faithcoderlab.newdpraise.domain.conti.share.ContiSharePermission;
+import faithcoderlab.newdpraise.domain.conti.share.ContiShareService;
 import faithcoderlab.newdpraise.domain.song.Song;
 import faithcoderlab.newdpraise.domain.song.SongRepository;
 import faithcoderlab.newdpraise.domain.user.User;
+import faithcoderlab.newdpraise.global.exception.AuthenticationException;
 import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,6 +28,7 @@ public class ContiService {
   private final ContiRepository contiRepository;
   private final SongRepository songRepository;
   private final ContiParserService contiParserService;
+  private final ContiShareService contiShareService;
 
   @Transactional
   public Conti createConti(ContiCreateRequest request, User creator) {
@@ -65,7 +70,12 @@ public class ContiService {
 
   @Transactional
   public Conti updateConti(Long contiId, ContiUpdateRequest request, User user) {
-    Conti conti = getContiByIdAndCreator(contiId, user);
+    Conti conti = contiRepository.findById(contiId)
+        .orElseThrow(() -> new ResourceNotFoundException("콘티를 찾을 수 없습니다. ID: " + contiId));
+
+    if (!contiShareService.canEditConti(conti, user)) {
+      throw new AuthenticationException("콘티를 수정할 권한이 없습니다.");
+    }
 
     if (request.getTitle() != null) {
       conti.setTitle(request.getTitle());
@@ -136,6 +146,16 @@ public class ContiService {
         .orElseThrow(() -> new ResourceNotFoundException("콘티를 찾을 수 없습니다. ID: " + contiId));
   }
 
+  public Conti getContiByIdAndCheckPermission(Long contiId, User user) {
+    Conti conti = getContiById(contiId);
+
+    if (!contiShareService.canViewConti(conti, user)) {
+      throw new AuthenticationException("콘티를 조회할 권한이 없습니다.");
+    }
+
+    return conti;
+  }
+
   public Conti getContiByIdAndCreator(Long contiId, User creator) {
     Conti conti = getContiById(contiId);
     if (conti.getCreator() != null && !conti.getCreator().getId().equals(creator.getId())) {
@@ -145,15 +165,29 @@ public class ContiService {
   }
 
   @Transactional
-  public void updateContiStatus(Long contiId, ContiStatus status) {
+  public void updateContiStatus(Long contiId, ContiStatus status, User user) {
     Conti conti = getContiById(contiId);
+
+    boolean isCreator = conti.getCreator() != null && conti.getCreator().getId().equals(user.getId());
+    boolean hasAdminPermission = contiShareService.hasPermission(contiId, user.getId(),
+        ContiSharePermission.ADMIN);
+
+    if (!isCreator && !hasAdminPermission) {
+      throw new AuthenticationException("콘티 상태를 변경할 권한이 없습니다.");
+    }
+
     conti.setStatus(status);
     contiRepository.save(conti);
   }
 
   @Transactional
-  public void deleteConti(Long contiId) {
+  public void deleteConti(Long contiId, User user) {
     Conti conti = getContiById(contiId);
+
+    if (conti.getCreator() == null || !conti.getCreator().getId().equals(user.getId())) {
+      throw new AuthenticationException("콘티를 삭제할 권한이 없습니다.");
+    }
+
     contiRepository.delete(conti);
   }
 
@@ -201,5 +235,17 @@ public class ContiService {
 
   public List<Conti> getUserContisByStatus(User user, ContiStatus status) {
     return contiRepository.findByCreatorAndStatus(user, status);
+  }
+
+  public List<Conti> getAllUserContis(User user) {
+    List<Conti> ownedContis = contiRepository.findByCreatorOrderByScheduledAtDesc(user);
+    List<Conti> sharedContis = contiShareService.getSharedContis(user).stream()
+        .map(ContiShare::getConti)
+        .collect(Collectors.toList());
+
+    sharedContis.removeAll(ownedContis);
+    ownedContis.addAll(sharedContis);
+
+    return ownedContis;
   }
 }

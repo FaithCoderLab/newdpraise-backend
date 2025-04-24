@@ -23,6 +23,10 @@ public class ContiResponse {
   private String status;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
+  private boolean isShared;
+  private boolean canEdit;
+  private boolean canShare;
+  private String permissionType;
 
   @Data
   @Builder

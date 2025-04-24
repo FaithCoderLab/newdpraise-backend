@@ -6,6 +6,9 @@ import faithcoderlab.newdpraise.domain.conti.dto.ContiParseResponse;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiResponse;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiSearchRequest;
 import faithcoderlab.newdpraise.domain.conti.dto.ContiUpdateRequest;
+import faithcoderlab.newdpraise.domain.conti.share.ContiShare;
+import faithcoderlab.newdpraise.domain.conti.share.ContiSharePermission;
+import faithcoderlab.newdpraise.domain.conti.share.ContiShareService;
 import faithcoderlab.newdpraise.domain.user.User;
 import faithcoderlab.newdpraise.domain.user.UserRepository;
 import faithcoderlab.newdpraise.global.exception.AuthenticationException;
@@ -50,6 +53,7 @@ public class ContiController {
 
   private final ContiParserService contiParserService;
   private final ContiService contiService;
+  private final ContiShareService contiShareService;
   private final UserRepository userRepository;
 
   @Operation(summary = "콘티 텍스트 파싱", description = "텍스트 형태의 콘티를 파싱하여 구조화된 데이터로 변환합니다.")
@@ -109,6 +113,23 @@ public class ContiController {
     ContiResponse response = mapToContiResponse(conti);
 
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(summary = "모든 콘티 목록 조회", description = "사용자의 모든 콘티 목록(생성 + 공유)을 조회합니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "조회 성공"),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
+  })
+  @GetMapping("/all")
+  public ResponseEntity<List<ContiResponse>> getAllContiList(Principal principal) {
+    User user = getUserFromPrincipal(principal);
+    List<Conti> contiList = contiService.getAllUserContis(user);
+
+    List<ContiResponse> responseList = contiList.stream()
+        .map(this::mapToContiResponse)
+        .collect(Collectors.toList());
+
+    return ResponseEntity.ok(responseList);
   }
 
   @Operation(summary = "콘티 목록 조회", description = "사용자의 콘티 목록을 조회합니다.")
@@ -212,12 +233,10 @@ public class ContiController {
       Principal principal
   ) {
     User user = getUserFromPrincipal(principal);
-    Conti conti = contiService.getContiByIdAndCreator(contiId, user);
+    contiService.updateContiStatus(contiId, status, user);
+    Conti conti = contiService.getContiById(contiId);
 
-    contiService.updateContiStatus(contiId, status);
-    conti = contiService.getContiById(contiId);
-
-    ContiResponse response = mapToContiResponse(conti);
+    ContiResponse response = mapToContiResponse(conti, user);
     return ResponseEntity.ok(response);
   }
 
@@ -235,7 +254,7 @@ public class ContiController {
     User user = getUserFromPrincipal(principal);
     Conti conti = contiService.getContiByIdAndCreator(contiId, user);
 
-    contiService.deleteConti(contiId);
+    contiService.deleteConti(contiId, user);
     return ResponseEntity.noContent().build();
   }
 
@@ -325,10 +344,9 @@ public class ContiController {
   public ResponseEntity<ContiResponse> getContiDetail(
       @PathVariable Long contiId, Principal principal
   ) {
-
-    getUserFromPrincipal(principal);
+    User user = getUserFromPrincipal(principal);
     Conti conti = contiService.getContiById(contiId);
-    ContiResponse response = mapToContiResponse(conti);
+    ContiResponse response = mapToContiResponse(conti, user);
 
     return ResponseEntity.ok(response);
   }
@@ -364,6 +382,10 @@ public class ContiController {
   }
 
   private ContiResponse mapToContiResponse(Conti conti) {
+    return mapToContiResponse(conti, null);
+  }
+
+  private ContiResponse mapToContiResponse(Conti conti, User currentUser) {
     List<ContiResponse.SongDto> songDtos = new ArrayList<>();
     if (conti.getSongs() != null) {
       songDtos = conti.getSongs().stream()
@@ -379,6 +401,37 @@ public class ContiController {
           .toList();
     }
 
+    boolean isCreator = false;
+    boolean isShared = false;
+    boolean canEdit = false;
+    boolean canShare = false;
+    String permissionType = "NONE";
+
+    if (currentUser != null && conti.getCreator() != null) {
+      isCreator = conti.getCreator().getId().equals(currentUser.getId());
+
+      if (isCreator) {
+        canEdit = true;
+        canShare = true;
+        permissionType = "CREATOR";
+      } else {
+        isShared = contiShareService.hasPermission(conti.getId(), currentUser.getId(),
+            ContiSharePermission.VIEW, ContiSharePermission.EDIT, ContiSharePermission.ADMIN);
+        canEdit = contiShareService.hasPermission(conti.getId(), currentUser.getId(),
+            ContiSharePermission.EDIT, ContiSharePermission.ADMIN);
+        canShare = contiShareService.hasPermission(conti.getId(), currentUser.getId(),
+            ContiSharePermission.ADMIN);
+
+        if (canShare) {
+          permissionType = "ADMIN";
+        } else if (canEdit) {
+          permissionType = "EDIT";
+        } else if (isShared) {
+          permissionType = "VIEW";
+        }
+      }
+    }
+
     return ContiResponse.builder()
         .id(conti.getId())
         .title(conti.getTitle())
@@ -390,6 +443,10 @@ public class ContiController {
         .status(conti.getStatus().name())
         .createdAt(conti.getCreatedAt())
         .updatedAt(conti.getUpdatedAt())
+        .isShared(isShared)
+        .canEdit(canEdit)
+        .canShare(canShare)
+        .permissionType(permissionType)
         .build();
   }
 }
