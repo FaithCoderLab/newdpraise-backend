@@ -1,5 +1,6 @@
 package faithcoderlab.newdpraise.domain.conti.template.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +22,7 @@ public class ContiTemplateResponse {
 
   private String creatorName;
 
+  @JsonProperty("isPublic")
   private boolean isPublic;
 
   private Integer usageCount;
