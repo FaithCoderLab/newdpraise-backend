@@ -516,7 +516,7 @@ class ContiServiceTest {
     when(contiRepository.save(any(Conti.class))).thenReturn(testConti);
 
     // when
-    contiService.updateContiStatus(1L, ContiStatus.FINALIZED);
+    contiService.updateContiStatus(1L, ContiStatus.FINALIZED, testUser);
 
     // then
     verify(contiRepository).save(any(Conti.class));
@@ -529,7 +529,7 @@ class ContiServiceTest {
     when(contiRepository.findById(1L)).thenReturn(Optional.of(testConti));
 
     // when
-    contiService.deleteConti(1L);
+    contiService.deleteConti(1L,  testUser);
 
     // then
     verify(contiRepository).delete(testConti);

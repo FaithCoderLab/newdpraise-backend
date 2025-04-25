@@ -365,7 +365,7 @@ class ContiControllerTest {
 
     when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
     when(contiService.getContiByIdAndCreator(anyLong(), any(User.class))).thenReturn(updatedConti);
-    doNothing().when(contiService).updateContiStatus(anyLong(), any(ContiStatus.class));
+    doNothing().when(contiService).updateContiStatus(anyLong(), any(ContiStatus.class), any(User.class));
     when(contiService.getContiById(anyLong())).thenReturn(updatedConti);
 
     // when & then
@@ -385,7 +385,7 @@ class ContiControllerTest {
     // given
     when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
     when(contiService.getContiByIdAndCreator(anyLong(), any(User.class))).thenReturn(testConti);
-    doNothing().when(contiService).deleteConti(anyLong());
+    doNothing().when(contiService).deleteConti(anyLong(), any(User.class));
 
     // when & then
     mockMvc.perform(delete("/conti/{contiId}", 1L))
