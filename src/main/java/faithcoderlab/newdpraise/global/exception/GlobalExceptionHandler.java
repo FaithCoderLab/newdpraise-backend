@@ -127,4 +127,14 @@ public class GlobalExceptionHandler {
     );
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
+
+  @ExceptionHandler(YoutubeDownloadException.class)
+  public ResponseEntity<ErrorResponse> handleYoutubeDownloadException(YoutubeDownloadException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.BAD_REQUEST.value(),
+        ex.getMessage(),
+        LocalDateTime.now()
+    );
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+  }
 }
