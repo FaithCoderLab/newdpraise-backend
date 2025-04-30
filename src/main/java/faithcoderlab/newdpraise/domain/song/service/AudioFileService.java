@@ -79,7 +79,7 @@ public class AudioFileService {
 
     audioFileRepository.delete(audioFile);
 
-    File file = new File(audioFile.getFilePath());
+    File file = getFileFromPath(audioFile.getFilePath());
     return file.delete();
   }
 
@@ -118,5 +118,9 @@ public class AudioFileService {
         .createdAt(audioFile.getCreatedAt())
         .updatedAt(audioFile.getUpdatedAt())
         .build();
+  }
+
+  protected File getFileFromPath(String filePath) {
+    return new File(filePath);
   }
 }

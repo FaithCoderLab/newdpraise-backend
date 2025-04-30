@@ -105,6 +105,10 @@ public class YoutubeDownloadService {
           .max(Comparator.comparing(AudioFormat::averageBitrate))
           .orElse(audioFormats.get(0));
 
+      if (bestAudioFormat.extension() == null) {
+        throw new YoutubeDownloadException("오디오 파일 다운로드 실패: 지원되지 않는 오디오 형식입니다");
+      }
+
       String downloadDir = appConfig.getFileUploadDir() + "/audio";
       Path downloadPath = Paths.get(downloadDir);
       if (!Files.exists(downloadPath)) {
@@ -137,6 +141,8 @@ public class YoutubeDownloadService {
           .build();
     } catch (IOException e) {
       throw new YoutubeDownloadException("오디오 파일 저장 중 오류 발생: " + e.getMessage(), e);
+    } catch (NullPointerException e) {
+      throw new YoutubeDownloadException("오디오 파일 다운로드 실패: " + e.getMessage(), e);
     } catch (Exception e) {
       throw new YoutubeDownloadException("YouTube 오디오 다운로드 실패: " + e.getMessage(), e);
     }
