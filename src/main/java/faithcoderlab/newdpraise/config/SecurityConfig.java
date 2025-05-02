@@ -24,6 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableJpaAuditing
 @RequiredArgsConstructor
+@Profile("!test")
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -63,13 +64,11 @@ public class SecurityConfig {
   }
 
   @Bean
-  @Profile("!test")
   public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
     return config.getAuthenticationManager();
   }
 
   @Bean
-  @Profile("!test")
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
