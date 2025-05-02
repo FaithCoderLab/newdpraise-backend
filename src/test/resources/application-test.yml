@@ -6,21 +6,23 @@ spring:
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
+      mode: embedded
+  main:
+    allow-bean-definition-overriding: true
 
-#logging:
-#  level:
-#    org.springframework: DEBUG
-#    org.hibernate: DEBUG
-#    faithcoderlab.newdpraise: DEBUG
+logging:
+  level:
+    org.springframework: INFO
+    org.hibernate: INFO
+    faithcoderlab.newdpraise: DEBUG
 
 
 # Youtube API 설정

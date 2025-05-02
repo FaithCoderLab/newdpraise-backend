@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,11 +18,13 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableJpaAuditing
 @RequiredArgsConstructor
+@Profile("!test")
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -44,6 +47,8 @@ public class SecurityConfig {
             .requestMatchers("/v3/api-docs/**").permitAll()
             .anyRequest().authenticated()
         )
+        .exceptionHandling(exception -> exception
+            .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
         .authenticationProvider(authenticationProvider())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -59,13 +64,11 @@ public class SecurityConfig {
   }
 
   @Bean
-  @Profile("!test")
   public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
     return config.getAuthenticationManager();
   }
 
   @Bean
-  @Profile("!test")
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
