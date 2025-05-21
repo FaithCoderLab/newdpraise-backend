@@ -7,8 +7,12 @@ import com.github.kiulian.downloader.downloader.response.Response;
 import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
 import faithcoderlab.newdpraise.config.AppConfig;
+import faithcoderlab.newdpraise.domain.song.download.DownloadTask;
+import faithcoderlab.newdpraise.domain.song.download.DownloadTaskRepository;
 import faithcoderlab.newdpraise.domain.song.dto.AudioDownloadResult;
+import faithcoderlab.newdpraise.domain.song.dto.AudioMetadata;
 import faithcoderlab.newdpraise.domain.song.dto.YoutubeVideoInfo;
+import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
 import faithcoderlab.newdpraise.global.exception.YoutubeDownloadException;
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -31,10 +36,18 @@ public class YoutubeDownloadService {
 
   private final YoutubeDownloader youtubeDownloader;
   private final AppConfig appConfig;
+  private final AudioMetadataService audioMetadataService;
+  private final DownloadTaskRepository downloadTaskRepository;
 
-  public YoutubeDownloadService(YoutubeDownloader youtubeDownloader, AppConfig appConfig) {
+  public YoutubeDownloadService(
+      YoutubeDownloader youtubeDownloader,
+      AppConfig appConfig,
+      AudioMetadataService audioMetadataService,
+      DownloadTaskRepository downloadTaskRepository) {
     this.youtubeDownloader = youtubeDownloader;
     this.appConfig = appConfig;
+    this.audioMetadataService = audioMetadataService;
+    this.downloadTaskRepository = downloadTaskRepository;
   }
 
   public boolean isValidYoutubeUrl(String url) {
@@ -88,6 +101,8 @@ public class YoutubeDownloadService {
     }
 
     try {
+      updateDownloadProgress(videoId, 0.1f);
+
       RequestVideoInfo infoRequest = new RequestVideoInfo(videoId);
       Response<VideoInfo> infoResponse = youtubeDownloader.getVideoInfo(infoRequest);
       VideoInfo videoInfo = infoResponse.data();
@@ -95,6 +110,8 @@ public class YoutubeDownloadService {
       if (videoInfo == null) {
         throw new YoutubeDownloadException("비디오 정보를 가져올 수 없습니다: " + videoId);
       }
+
+      updateDownloadProgress(videoId, 0.2f);
 
       List<AudioFormat> audioFormats = videoInfo.audioFormats();
       if (audioFormats.isEmpty()) {
@@ -109,11 +126,15 @@ public class YoutubeDownloadService {
         throw new YoutubeDownloadException("오디오 파일 다운로드 실패: 지원되지 않는 오디오 형식입니다");
       }
 
-      String downloadDir = appConfig.getFileUploadDir() + "/audio";
+      updateDownloadProgress(videoId, 0.3f);
+
+      String downloadDir = createAudioStorageStructure(videoId);
       Path downloadPath = Paths.get(downloadDir);
       if (!Files.exists(downloadPath)) {
         Files.createDirectories(downloadPath);
       }
+
+      updateDownloadProgress(videoId, 0.4f);
 
       RequestVideoFileDownload downloadRequest = new RequestVideoFileDownload(bestAudioFormat)
           .saveTo(downloadPath.toFile())
@@ -126,7 +147,13 @@ public class YoutubeDownloadService {
         throw new YoutubeDownloadException("오디오 파일 다운로드 실패: " + videoId);
       }
 
-      return AudioDownloadResult.builder()
+      updateDownloadProgress(videoId, 0.8f);
+
+      AudioMetadata metadata = audioMetadataService.extractMetadata(downloadFile);
+
+      updateDownloadProgress(videoId, 0.9f);
+
+      AudioDownloadResult result = AudioDownloadResult.builder()
           .videoId(videoId)
           .title(videoInfo.details().title())
           .artist(videoInfo.details().author())
@@ -136,9 +163,24 @@ public class YoutubeDownloadService {
           .mimeType("audio/" + bestAudioFormat.extension().value())
           .extension(bestAudioFormat.extension().value())
           .bitrate(bestAudioFormat.averageBitrate())
-          .durationSeconds(videoInfo.details().lengthSeconds())
+          .durationSeconds(metadata.getDurationSeconds() != null ?
+              metadata.getDurationSeconds() :
+              Long.valueOf(videoInfo.details().lengthSeconds()))
           .thumbnailUrl(videoInfo.details().thumbnails().get(0))
           .build();
+
+      if (metadata.getKey() != null && !metadata.getKey().equals("Unknown")) {
+        result.setOriginalKey(metadata.getKey());
+        result.setPerformanceKey(metadata.getKey());
+      }
+
+      if (metadata.getBpm() != null && metadata.getBpm() > 0) {
+        result.setBpm(String.valueOf(metadata.getBpm()));
+      }
+
+      updateDownloadProgress(videoId, 1.0f);
+
+      return result;
     } catch (IOException e) {
       throw new YoutubeDownloadException("오디오 파일 저장 중 오류 발생: " + e.getMessage(), e);
     } catch (NullPointerException e) {
@@ -148,16 +190,38 @@ public class YoutubeDownloadService {
     }
   }
 
+  private void updateDownloadProgress(String videoId, float progress) {
+    Optional<DownloadTask> taskOpt = downloadTaskRepository.findByVideoId(videoId);
+    if (taskOpt.isPresent()) {
+      DownloadTask task = taskOpt.get();
+      task.updateProgress(progress);
+      downloadTaskRepository.save(task);
+    }
+  }
+
+  private String createAudioStorageStructure(String videoId) {
+    if (videoId.length() < 4) {
+      return appConfig.getFileUploadDir() + "/audio";
+    }
+
+    String firstLevel = videoId.substring(0, 2);
+    String secondLevel = videoId.substring(2, 4);
+    return appConfig.getFileUploadDir() + "/audio/" + firstLevel + "/" + secondLevel;
+  }
+
   public List<String> getDownloadedAudioFiles() {
-    String downloadDir = appConfig.getFileUploadDir() + "/audio";
-    Path downloadPath = Paths.get(downloadDir);
+    String baseDir = appConfig.getFileUploadDir() + "/audio";
+    Path basePath = Paths.get(baseDir);
     List<String> files = new ArrayList<>();
 
     try {
-      if (Files.exists(downloadPath)) {
-        Files.list(downloadPath)
+      if (Files.exists(basePath)) {
+        Files.walk(basePath)
             .filter(path -> !Files.isDirectory(path))
-            .forEach(path -> files.add(path.getFileName().toString()));
+            .forEach(path -> {
+              String relativePath = basePath.relativize(path).toString();
+              files.add(relativePath);
+            });
       }
     } catch (IOException e) {
       throw new YoutubeDownloadException("다운로드된 파일 목록을 가져오는데 실패했습니다: " + e.getMessage(), e);
@@ -171,12 +235,13 @@ public class YoutubeDownloadService {
       return false;
     }
 
-    String downloadDir = appConfig.getFileUploadDir() + "/audio";
-    Path downloadPath = Paths.get(downloadDir);
+    String baseDir = appConfig.getFileUploadDir() + "/audio";
+    Path basePath = Paths.get(baseDir);
 
     try {
-      if (Files.exists(downloadPath)) {
-        return Files.list(downloadPath)
+      if (Files.exists(basePath)) {
+        return Files.walk(basePath)
+            .filter(path -> !Files.isDirectory(path))
             .anyMatch(path -> path.getFileName().toString().startsWith(videoId + "."));
       }
     } catch (IOException e) {
@@ -186,17 +251,42 @@ public class YoutubeDownloadService {
     return false;
   }
 
+  public File findAudioFileByVideoId(String videoId) {
+    if (!StringUtils.hasText(videoId)) {
+      throw new ResourceNotFoundException("유효하지 않은 비디오 ID: " + videoId);
+    }
+
+    String baseDir = appConfig.getFileUploadDir() + "/audio";
+    Path basePath = Paths.get(baseDir);
+
+    try {
+      if (Files.exists(basePath)) {
+        return Files.walk(basePath)
+            .filter(path -> !Files.isDirectory(path))
+            .filter(path -> path.getFileName().toString().startsWith(videoId + "."))
+            .findFirst()
+            .map(Path::toFile)
+            .orElseThrow(() -> new ResourceNotFoundException("오디오 파일을 찾을 수 없습니다: " + videoId));
+      }
+    } catch (IOException e) {
+      throw new YoutubeDownloadException("파일 검색 중 오류 발생: " + e.getMessage(), e);
+    }
+
+    throw new ResourceNotFoundException("오디오 파일을 찾을 수 없습니다: " + videoId);
+  }
+
   public boolean deleteAudioFile(String videoId) {
     if (!StringUtils.hasText(videoId)) {
       return false;
     }
 
-    String downloadDir = appConfig.getFileUploadDir() + "/audio";
-    Path downloadPath = Paths.get(downloadDir);
+    String baseDir = appConfig.getFileUploadDir() + "/audio";
+    Path basePath = Paths.get(baseDir);
 
     try {
-      if (Files.exists(downloadPath)) {
-        return Files.list(downloadPath)
+      if (Files.exists(basePath)) {
+        return Files.walk(basePath)
+            .filter(path -> !Files.isDirectory(path))
             .filter(path -> path.getFileName().toString().startsWith(videoId + "."))
             .findFirst()
             .map(path -> {

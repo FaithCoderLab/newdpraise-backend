@@ -62,6 +62,12 @@ public class AudioFile {
   @Column(nullable = false)
   private String originalUrl;
 
+  private String originalKey;
+
+  private String performanceKey;
+
+  private String bpm;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id")
   private User uploader;

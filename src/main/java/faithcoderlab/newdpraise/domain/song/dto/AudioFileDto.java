@@ -23,6 +23,9 @@ public class AudioFileDto {
   private Long durationSeconds;
   private String thumbnailUrl;
   private String downloadUrl;
+  private String originalKey;
+  private String performanceKey;
+  private String bpm;
   private Long uploaderId;
   private String uploaderName;
   private LocalDateTime createdAt;

@@ -21,4 +21,7 @@ public class AudioDownloadResult {
   private int bitrate;
   private long durationSeconds;
   private String thumbnailUrl;
+  private String originalKey;
+  private String performanceKey;
+  private String bpm;
 }

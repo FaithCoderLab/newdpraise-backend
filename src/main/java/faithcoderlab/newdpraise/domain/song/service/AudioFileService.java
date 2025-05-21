@@ -4,6 +4,7 @@ import faithcoderlab.newdpraise.domain.song.AudioFile;
 import faithcoderlab.newdpraise.domain.song.AudioFileRepository;
 import faithcoderlab.newdpraise.domain.song.dto.AudioDownloadResult;
 import faithcoderlab.newdpraise.domain.song.dto.AudioFileDto;
+import faithcoderlab.newdpraise.domain.song.dto.AudioMetadata;
 import faithcoderlab.newdpraise.domain.user.User;
 import faithcoderlab.newdpraise.global.exception.ResourceAlreadyExistsException;
 import faithcoderlab.newdpraise.global.exception.ResourceNotFoundException;
@@ -23,6 +24,7 @@ public class AudioFileService {
 
   private final AudioFileRepository audioFileRepository;
   private final YoutubeDownloadService youtubeDownloadService;
+  private final AudioMetadataService audioMetadataService;
 
   @Transactional
   public AudioFile saveAudioFile(AudioDownloadResult downloadResult, User uploader,
@@ -46,6 +48,15 @@ public class AudioFileService {
         .originalUrl(originalUrl)
         .uploader(uploader)
         .build();
+
+    if (downloadResult.getOriginalKey() != null) {
+      audioFile.setOriginalKey(downloadResult.getOriginalKey());
+      audioFile.setPerformanceKey(downloadResult.getPerformanceKey());
+    }
+
+    if (downloadResult.getBpm() != null) {
+      audioFile.setBpm(downloadResult.getBpm());
+    }
 
     return audioFileRepository.save(audioFile);
   }
@@ -84,7 +95,7 @@ public class AudioFileService {
   }
 
   @Transactional
-  public AudioFileDto updateAudioFileMetadata(String videoId, String title, String artist, User uploader) {
+  public AudioFileDto updateAudioFileMetadata(String videoId, String title, String artist, String key, String bpm, User uploader) {
     AudioFile audioFile = audioFileRepository.findByVideoIdAndUploaderId(videoId, uploader.getId())
         .orElseThrow(() -> new ResourceNotFoundException("오디오 파일을 찾을 수 없습니다: " + videoId));
 
@@ -94,6 +105,43 @@ public class AudioFileService {
 
     if (artist != null && !artist.isBlank()) {
       audioFile.setArtist(artist);
+    }
+
+    if (key != null && !key.isBlank()) {
+      audioFile.setOriginalKey(key);
+      audioFile.setPerformanceKey(key);
+    }
+
+    if (bpm != null && !bpm.isBlank()) {
+      audioFile.setBpm(bpm);
+    }
+
+    AudioFile updateFile = audioFileRepository.save(audioFile);
+    return mapToDto(updateFile);
+  }
+
+  @Transactional
+  public AudioFileDto extractAndUpdateMetadata(String videoId, User uploader) {
+    AudioFile audioFile = audioFileRepository.findByVideoIdAndUploaderId(videoId, uploader.getId())
+        .orElseThrow(() -> new ResourceNotFoundException("오디오 파일을 찾을 수 없습니다: " + videoId));
+
+    File file = youtubeDownloadService.findAudioFileByVideoId(videoId);
+
+    AudioMetadata metadata = audioMetadataService.extractMetadata(file);
+
+    if (metadata.getKey() != null && !meatadata.getKey().equals("Unknown")) {
+      audioFile.setOriginalKey(metadata.getKey());
+      if (audioFile.getPerformanceKey() == null) {
+        audioFile.setPerformanceKey(metadata.getKey());
+      }
+    }
+
+    if (metadata.getBpm() != null && metadata.getBpm() > 0) {
+      audioFile.setBpm(String.valueOf(metadata.getBpm()));
+    }
+
+    if (metadata.getDurationSeconds() != null && metadata.getDurationSeconds() > 0) {
+      audioFile.setDurationSeconds(metadata.getDurationSeconds());
     }
 
     AudioFile updateFile = audioFileRepository.save(audioFile);
@@ -114,7 +162,11 @@ public class AudioFileService {
         .durationSeconds(audioFile.getDurationSeconds())
         .thumbnailUrl(audioFile.getThumbnailUrl())
         .downloadUrl(audioFile.getDownloadUrl())
-        .uploaderId(audioFile.getUploader()!= null ? audioFile.getUploader().getId() : null)
+        .originalKey(audioFile.getOriginalKey())
+        .performanceKey(audioFile.getPerformanceKey())
+        .bpm(audioFile.getBpm())
+        .uploaderId(audioFile.getUploader() != null ? audioFile.getUploader().getId() : null)
+        .uploaderName(audioFile.getUploader() != null ? audioFile.getUploader().getName() : null)
         .createdAt(audioFile.getCreatedAt())
         .updatedAt(audioFile.getUpdatedAt())
         .build();

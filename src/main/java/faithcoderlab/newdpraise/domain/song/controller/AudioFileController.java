@@ -229,6 +229,24 @@ public class AudioFileController {
     return ResponseEntity.ok(audioFileDto);
   }
 
+  @Operation(summary = "오디오 파일 메타데이터 추출", description = "오디오 파일의 메타데이터(키, BPM 등)를 자동으로 추출합니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "메타데이터 추출 성공"),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+      @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음")
+  })
+  @PostMapping("/{videoId}/extract-metadata")
+  public ResponseEntity<AudioFileDto> extractMetadata(
+      @PathVariable String videoId,
+      Principal principal
+  ) {
+    User user = getUserFromPrincipal(principal);
+
+    AudioFileDto updatedFile = audioFileService.extractAndUpdateMetadata(videoId, user);
+
+    return ResponseEntity.ok(updatedFile);
+  }
+
   private User getUserFromPrincipal(Principal principal) {
     if (principal == null) {
       throw new AuthenticationException("인증되지 않은 사용자입니다.");
